@@ -51,7 +51,6 @@ class Settings(commands.Cog):
             category_id = int(inter.text_values['category_id'])
             channel_id = int(inter.text_values['channel_id'])
 
-            # Проверка существования category_id и channel_id на сервере
             category = inter.guild.get_channel(category_id)
             channel = inter.guild.get_channel(channel_id)
 
@@ -63,20 +62,17 @@ class Settings(commands.Cog):
                 await inter.response.send_message("Канал с таким ID введённом не найден на сервере!")
                 return
 
-            # Проверка существования записи в базе данных
             self.db.cursor.execute("""
                 SELECT * FROM settings WHERE guild_id = ?
             """, (inter.guild.id,))
             existing_settings = self.db.cursor.fetchone()
 
             if existing_settings is not None:
-                # Обновление существующих данных
                 self.db.cursor.execute("""
                     UPDATE settings SET embed_color = ?, category_id = ?, ticket_channel_id = ?
                     WHERE guild_id = ?
                 """, (color, category_id, channel_id, inter.guild.id))
             else:
-                # Создание новых данных
                 self.db.cursor.execute("""
                     INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id)
                     VALUES (?, ?, ?, ?)
