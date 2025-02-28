@@ -21,9 +21,12 @@ class Database:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS staff_list (
                 id INTEGER PRIMARY KEY,
-                guild_id INTEGER,
+                nickname TEXT,
                 user_id INTEGER,
-                role TEXT
+                role TEXT,
+                closed_tickets INTEGER,
+                likes INTEGER,
+                dislikes INTEGER
             )
         """)
         self.conn.commit()
