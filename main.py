@@ -11,7 +11,7 @@ db = Database("database.db")
 
 @bot.event
 async def on_ready():
-    print(f"Бот запущен! {bot.user}")
+    print(f"Бот запущен /|\ {bot.user}\n_________________")
     db.create_settings_table()
     db.create_staff_list_table()
     db.create_created_tickets_table()

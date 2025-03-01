@@ -52,10 +52,10 @@ class AddStaffModal(disnake.ui.Modal):
     def __init__(self, bot, db):
         components = [
             disnake.ui.ActionRow(
-                disnake.ui.TextInput(label="Юзернейм", placeholder="Иван Иванов", custom_id="nickname", style=disnake.TextInputStyle.short)
+                disnake.ui.TextInput(label="Юзернейм", placeholder="anarchowitz", custom_id="nickname", style=disnake.TextInputStyle.short)
             ),
             disnake.ui.ActionRow(
-                disnake.ui.TextInput(label="Айди пользователя", placeholder="1234567890", custom_id="user_id", style=disnake.TextInputStyle.short)
+                disnake.ui.TextInput(label="Айди пользователя", placeholder="444574234564362250", custom_id="user_id", style=disnake.TextInputStyle.short)
             ),
             disnake.ui.ActionRow(
                 disnake.ui.TextInput(label="Роль", placeholder="staff/dev", custom_id="role", style=disnake.TextInputStyle.short)
@@ -75,27 +75,45 @@ class AddStaffModal(disnake.ui.Modal):
             return
 
         self.db.cursor.execute("""
-            SELECT * FROM staff_list WHERE user_id = ?
-        """, (user_id,))
+            SELECT * FROM staff_list WHERE nickname = ?
+        """, (nickname,))
         existing_staff = self.db.cursor.fetchone()
 
         if existing_staff is not None:
-            await inter.response.send_message("Сотрудник с таким ID уже существует!")
-            return
-
-        self.db.cursor.execute("""
-            INSERT INTO staff_list (nickname, user_id, role, closed_tickets, likes, dislikes)
-            VALUES (?, ?, ?, 0, 0, 0)
-        """, (nickname, user_id, role))
-
-        self.db.conn.commit()
-
-        await inter.response.send_message(
-            f"Юзернейм: {nickname}\n"
-            f"Айди пользователя: {user_id}\n"
-            f"Роль: {role}\n"
-            f"Данные сохранены в базу данных!"
-        )
+            view = disnake.ui.View()
+            view.add_item(disnake.ui.Button(label="Да", style=disnake.ButtonStyle.green, custom_id="yes"))
+            view.add_item(disnake.ui.Button(label="Нет", style=disnake.ButtonStyle.red, custom_id="no"))
+            message = await inter.response.send_message("Юзернейм уже используется! Перезаписать данные?", view=view, ephemeral=True)
+            def check(inter):
+                return inter.data.custom_id in ["yes", "no"]
+            inter = await self.bot.wait_for("interaction", check=check, timeout=30)
+            if inter.data.custom_id == "yes":
+                self.db.cursor.execute("""
+                    UPDATE staff_list SET user_id = ?, role = ?, closed_tickets = 0, likes = 0, dislikes = 0
+                    WHERE nickname = ?
+                """, (user_id, role, nickname))
+                self.db.conn.commit()
+                await inter.response.send_message(
+                    f"Юзернейм: {nickname}\n"
+                    f"Айди пользователя: {user_id}\n"
+                    f"Роль: {role}\n"
+                    f"\nДанные перезаписаны в базу данных!",
+                    ephemeral=True
+                )
+            #дописать удаление текста с кнопкой (юзернейм уже исп..)
+        else:
+            self.db.cursor.execute("""
+                INSERT INTO staff_list (nickname, user_id, role, closed_tickets, likes, dislikes)
+                VALUES (?, ?, ?, 0, 0, 0)
+            """, (nickname, user_id, role))
+            self.db.conn.commit()
+            await inter.response.send_message(
+                f"Юзернейм: {nickname}\n"
+                f"Айди пользователя: {user_id}\n"
+                f"Роль: {role}\n"
+                f"\nДанные сохранены в базу данных!",
+                ephemeral=True
+            )
 
 class SettingsModal(disnake.ui.Modal):
     def __init__(self):
@@ -142,7 +160,8 @@ class SettingsModal(disnake.ui.Modal):
             f"Цвет боковой полоски: {color}\n"
             f"Айди категории тикетов: {category_id}\n"
             f"Айди канала тикетов: {channel_id}\n"
-            f"Данные сохранены в базу данных!"
+            f"\nДанные сохранены в базу данных!",
+            ephemeral=True
         )
 
 def setup(bot):
