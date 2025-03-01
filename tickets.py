@@ -52,7 +52,7 @@ class Tickets(commands.Cog):
     async def on_button_click(self, inter):
         if inter.data.custom_id == "create_ticket":
             self.db.cursor.execute("""
-                SELECT embed_color, category_id, ticket_channel_id FROM settings WHERE guild_id = ?
+                SELECT embed_color, category_id, ticket_channel_id, staff_roles_id FROM settings WHERE guild_id = ?
             """, (inter.guild.id,))
             settings = self.db.cursor.fetchone()
             if settings is None:
@@ -88,6 +88,11 @@ class Tickets(commands.Cog):
             embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
             embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
             await thread.send(embed=embed)
+            staff_roles_id = settings[3].split(", ")
+            for role_id in staff_roles_id:
+                role = inter.guild.get_role(int(role_id))
+                if role is not None:
+                    await thread.add_user(role)
             await thread.add_user(inter.author)
             
 
