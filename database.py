@@ -13,8 +13,7 @@ class Database:
                 embed_color TEXT,
                 category_id INTEGER,
                 ticket_channel_id INTEGER,
-                counter_tickets INTEGER DEFAULT 0,
-                staff_roles_id TEXT
+                counter_tickets INTEGER DEFAULT 0
             )
         """)
         self.conn.commit()

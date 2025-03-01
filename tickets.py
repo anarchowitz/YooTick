@@ -73,7 +73,7 @@ class Tickets(commands.Cog):
             counter_tickets = self.db.cursor.fetchone()[0]
             self.db.cursor.execute("UPDATE settings SET counter_tickets = ? WHERE guild_id = ?", (counter_tickets + 1, inter.guild.id))
             self.db.conn.commit()
-            thread = await inter.channel.create_thread(name=f"ticket-{counter_tickets + 1}", auto_archive_duration=60, type=disnake.ChannelType.private_thread)
+            thread = await inter.channel.create_thread(name=f"ticket-{counter_tickets + 1}", type=disnake.ChannelType.private_thread)
             await thread.edit(invitable=False)
             await inter.response.send_message(f":tickets: \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True)
             embed = disnake.Embed(
@@ -88,11 +88,6 @@ class Tickets(commands.Cog):
             embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
             embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
             await thread.send(embed=embed)
-            staff_roles_id = settings[3].split(", ")
-            for role_id in staff_roles_id:
-                role = inter.guild.get_role(int(role_id))
-                if role is not None:
-                    await thread.add_user(role)
             await thread.add_user(inter.author)
             
 
