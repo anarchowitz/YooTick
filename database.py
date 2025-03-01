@@ -12,7 +12,8 @@ class Database:
                 guild_id INTEGER,
                 embed_color TEXT,
                 category_id INTEGER,
-                ticket_channel_id INTEGER
+                ticket_channel_id INTEGER,
+                counter_tickets INTEGER DEFAULT 0
             )
         """)
         self.conn.commit()
@@ -37,8 +38,7 @@ class Database:
                 id INTEGER PRIMARY KEY,
                 guild_id INTEGER,
                 ticket_id INTEGER,
-                user_id INTEGER,
-                created_at TEXT
+                user_id INTEGER
             )
         """)
         self.conn.commit()

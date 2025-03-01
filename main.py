@@ -1,7 +1,8 @@
 import disnake
 from disnake.ext import commands
 from database import Database
-from commands import setup
+from tickets import setuptickets
+from commands import setupcommands
 
 intents = disnake.Intents.default() 
 intents.message_content = True
@@ -17,5 +18,6 @@ async def on_ready():
     db.create_created_tickets_table()
 
 if __name__ == "__main__":
-    setup(bot)
-    bot.run("MTI3Mzk1NzgzNTI1MTc4MTY0Mg.GgCwOB.0z4FATO1eYK1d7uoDQxTI6ZBrbfS85x-rCghrc")
+    setuptickets(bot)
+    setupcommands(bot)
+    bot.run("MTI3Mzk1NzgzNTI1MTc4MTY0Mg.GgCwOB.0z4FATO1eYK1d7uoDQxTI6ZBrbfS85x-rCghrc") 
