@@ -1,16 +1,28 @@
 import disnake, asyncio, datetime
 from disnake.ext import commands
 from database import Database
+from like_buttons import LikeButtons
 
 class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = Database("database.db")
-        
+        self.embed_color = None
+    
+    def setup(self, inter):
+        self.db.cursor.execute("""
+            SELECT embed_color, category_id, ticket_channel_id FROM settings WHERE guild_id = ?
+        """, (inter.guild.id,))
+        settings = self.db.cursor.fetchone()
+
+        self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
+
     @commands.slash_command(description="[DEV] - Сообщение создания тикетов")
     async def ticketmsg(self, inter):
         self.db.cursor.execute("""
-            SELECT embed_color, category_id, ticket_channel_id FROM settings WHERE guild_id = ?
+            SELECT embed_color, category_id, ticket_channel_id 
+            FROM settings 
+            WHERE guild_id = ?
         """, (inter.guild.id,))
         settings = self.db.cursor.fetchone()
 
@@ -50,16 +62,6 @@ class Tickets(commands.Cog):
 
     @commands.Cog.listener()
     async def on_button_click(self, inter):
-        self.db.cursor.execute("""
-            SELECT embed_color, category_id, ticket_channel_id FROM settings WHERE guild_id = ?
-        """, (inter.guild.id,))
-        settings = self.db.cursor.fetchone()
-
-        if settings is None:
-            await inter.response.send_message("Настройки не найдены!")
-            return
-
-        embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
         if inter.data.custom_id == "create_ticket":
             self.db.cursor.execute("SELECT category_id FROM settings WHERE guild_id = ?", (inter.guild.id,))
             category_id = self.db.cursor.fetchone()[0]
@@ -89,7 +91,7 @@ class Tickets(commands.Cog):
                 "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
                 "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
                 "**Несоблюдение этих правил может привести к наказанию**.",
-                color=embed_color)
+                color=self.embed_color)
             embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
             embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
             view = disnake.ui.View(timeout=None)
@@ -101,11 +103,11 @@ class Tickets(commands.Cog):
             await thread.send(embed=embed, view=view)
             await thread.add_user(inter.author)
             
-            self.db.cursor.execute("SELECT prime_time FROM settings WHERE guild_id = ?", (inter.guild.id,))
-            prime_time = self.db.cursor.fetchone()[0]
+            self.db.cursor.execute("SELECT primetime FROM settings WHERE guild_id = ?", (inter.guild.id,))
+            primetime = self.db.cursor.fetchone()[0]
 
-            if prime_time:
-                start_time, end_time = prime_time.split(" - ")
+            if primetime:
+                start_time, end_time = primetime.split(" - ")
                 start_hour, start_minute = map(int, start_time.split(":"))
                 end_hour, end_minute = map(int, end_time.split(":"))
 
@@ -148,7 +150,7 @@ class Tickets(commands.Cog):
             confirmation_embed = disnake.Embed(
                 title="Подтверждение",
                 description="Вы уверены что хотите закрыть тикет?",
-                color=embed_color
+                color=0xF0C43F,
             )
             view = disnake.ui.View(timeout=30)
             close_button = disnake.ui.Button(label="Закрыть", emoji='🔒', custom_id="confirm_close_ticket", style=disnake.ButtonStyle.red)
@@ -166,20 +168,22 @@ class Tickets(commands.Cog):
             user = inter.guild.get_member_named(taken_username)
             embed1 = disnake.Embed(
                 description=f"Тикет был закрыт - {inter.user.mention}",
-                color=embed_color
+                color=0xF0C43F,
             )
             embed2 = disnake.Embed(
                 description=f"Тикет будет удален через несколько секунд",
-                color=embed_color
+                color=0xF0C43F,
             )
-            await inter.response.send_message(embeds=[embed1, embed2])
+            await inter.response.defer()
+            await inter.channel.send(embed=embed1)
+            await inter.channel.send(embed=embed2)
 
             self.db.cursor.execute("SELECT creator_id, creator_username, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
             creator_id, creator_username, thread_number = self.db.cursor.fetchone()
             creator = await self.bot.fetch_user(creator_id)
             if creator is not None:
                 date_str = datetime.date.today().strftime("%d.%m.%Y")
-                embed = disnake.Embed(title="Ваш тикет был закрыт",timestamp=datetime.datetime.now(),color=embed_color)
+                embed = disnake.Embed(title="Ваш тикет был закрыт",timestamp=datetime.datetime.now(),color=self.embed_color)
                 embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
                 embed.add_field(name=":unlock: Открыл", value=creator.name, inline=True)
                 embed.add_field(name=":lock: Закрыл", value=inter.author.name, inline=True)
@@ -189,11 +193,7 @@ class Tickets(commands.Cog):
                     embed.add_field(name=":mag_right: Взял тикет", value=f"<@{inter.author.id}>", inline=True)
                 embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                 embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                view = disnake.ui.View()
-                like_button = disnake.ui.Button(label="👍", custom_id="like", style=disnake.ButtonStyle.green)
-                dislike_button = disnake.ui.Button(label="👎", custom_id="dislike", style=disnake.ButtonStyle.red)
-                view.add_item(like_button)
-                view.add_item(dislike_button)
+                view = LikeButtons(self.bot)
                 await creator.send(embed=embed, view=view)
 
 
@@ -266,11 +266,11 @@ class Tickets(commands.Cog):
                 async def callback(self, inter):
                     embed1 = disnake.Embed(
                         description=f"Тикет был закрыт - {inter.user.mention}",
-                        color=embed_color
+                        color=self.embed_color
                     )
                     embed2 = disnake.Embed(
                         description=f"Тикет будет удален через несколько секунд",
-                        color=embed_color
+                        color=self.embed_color
                     )
                     await inter.response.send_message(embeds=[embed1, embed2])
                     reason = inter.text_values['reason_input']
@@ -279,7 +279,7 @@ class Tickets(commands.Cog):
                     creator = await self.bot.fetch_user(creator_id)
                     if creator is not None:
                         date_str = datetime.date.today().strftime("%d.%m.%Y")
-                        embed = disnake.Embed(title="Ваш тикет был закрыт",timestamp=datetime.datetime.now(),color=embed_color)
+                        embed = disnake.Embed(title="Ваш тикет был закрыт",timestamp=datetime.datetime.now(),color=self.embed_color)
                         embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
                         embed.add_field(name=":unlock: Открыл", value=creator.name, inline=True)
                         embed.add_field(name=":lock: Закрыл", value=inter.author.name, inline=True)
@@ -290,11 +290,7 @@ class Tickets(commands.Cog):
                         embed.add_field(name=":pencil: Сообщение", value=reason, inline=False)
                         embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                         embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                        view = disnake.ui.View()
-                        like_button = disnake.ui.Button(label="👍", custom_id="like", style=disnake.ButtonStyle.green)
-                        dislike_button = disnake.ui.Button(label="👎", custom_id="dislike", style=disnake.ButtonStyle.red)
-                        view.add_item(like_button)
-                        view.add_item(dislike_button)
+                        view = LikeButtons(self.bot)
                         await creator.send(embed=embed, view=view)
 
                     self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
@@ -303,23 +299,14 @@ class Tickets(commands.Cog):
                     await inter.channel.delete()
 
             await inter.response.send_modal(CloseTicketModal(taken_username, self.bot))
-        if inter.data.custom_id == "like":
-            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            taken_username = self.db.cursor.fetchone()[0]
-            self.db.cursor.execute("SELECT likes FROM staff_list WHERE username = ?", (taken_username,))
-            likes = self.db.cursor.fetchone()[0]
-            self.db.cursor.execute("UPDATE staff_list SET likes = ? WHERE username = ?", (likes + 1, taken_username))
-            self.db.conn.commit()
-            await inter.response.send_message("Лайк добавлен", ephemeral=True)
-        elif inter.data.custom_id == "dislike":
-            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            taken_username = self.db.cursor.fetchone()[0]
-            self.db.cursor.execute("SELECT dislikes FROM staff_list WHERE username = ?", (taken_username,))
-            dislikes = self.db.cursor.fetchone()[0]
-            self.db.cursor.execute("UPDATE staff_list SET dislikes = ? WHERE username = ?", (dislikes + 1, taken_username))
-            self.db.conn.commit()
-            await inter.response.send_message("Дизлайк добавлен", ephemeral=True)
 
 
 def setuptickets(bot):
     bot.add_cog(Tickets(bot))
+    # You'll need to call the setup method when an interaction is received
+    # For example, in a command function:
+    @bot.slash_command()
+    async def setup_tickets(inter):
+        tickets_cog = bot.get_cog('Tickets')
+        if tickets_cog:
+            tickets_cog.setup(inter)
