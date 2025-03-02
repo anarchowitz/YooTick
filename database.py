@@ -14,7 +14,7 @@ class Database:
                 category_id INTEGER,
                 ticket_channel_id INTEGER,
                 counter_tickets INTEGER DEFAULT 0,
-                prime_time TEXT
+                primetime TEXT
             )
         """)
         self.conn.commit()
