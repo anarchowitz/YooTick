@@ -189,7 +189,13 @@ class Tickets(commands.Cog):
                     embed.add_field(name=":mag_right: Взял тикет", value=f"<@{inter.author.id}>", inline=True)
                 embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                 embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                await creator.send(embed=embed)
+                view = disnake.ui.View()
+                like_button = disnake.ui.Button(label="👍", custom_id="like", style=disnake.ButtonStyle.green)
+                dislike_button = disnake.ui.Button(label="👎", custom_id="dislike", style=disnake.ButtonStyle.red)
+                view.add_item(like_button)
+                view.add_item(dislike_button)
+                await creator.send(embed=embed, view=view)
+
 
             self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
             closed_tickets = self.db.cursor.fetchone()[0]
@@ -284,7 +290,12 @@ class Tickets(commands.Cog):
                         embed.add_field(name=":pencil: Сообщение", value=reason, inline=False)
                         embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                         embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                        await creator.send(embed=embed)
+                        view = disnake.ui.View()
+                        like_button = disnake.ui.Button(label="👍", custom_id="like", style=disnake.ButtonStyle.green)
+                        dislike_button = disnake.ui.Button(label="👎", custom_id="dislike", style=disnake.ButtonStyle.red)
+                        view.add_item(like_button)
+                        view.add_item(dislike_button)
+                        await creator.send(embed=embed, view=view)
 
                     self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                     self.db.conn.commit()
@@ -292,6 +303,23 @@ class Tickets(commands.Cog):
                     await inter.channel.delete()
 
             await inter.response.send_modal(CloseTicketModal(taken_username, self.bot))
+        if inter.data.custom_id == "like":
+            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+            taken_username = self.db.cursor.fetchone()[0]
+            self.db.cursor.execute("SELECT likes FROM staff_list WHERE username = ?", (taken_username,))
+            likes = self.db.cursor.fetchone()[0]
+            self.db.cursor.execute("UPDATE staff_list SET likes = ? WHERE username = ?", (likes + 1, taken_username))
+            self.db.conn.commit()
+            await inter.response.send_message("Лайк добавлен", ephemeral=True)
+        elif inter.data.custom_id == "dislike":
+            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+            taken_username = self.db.cursor.fetchone()[0]
+            self.db.cursor.execute("SELECT dislikes FROM staff_list WHERE username = ?", (taken_username,))
+            dislikes = self.db.cursor.fetchone()[0]
+            self.db.cursor.execute("UPDATE staff_list SET dislikes = ? WHERE username = ?", (dislikes + 1, taken_username))
+            self.db.conn.commit()
+            await inter.response.send_message("Дизлайк добавлен", ephemeral=True)
+
 
 def setuptickets(bot):
     bot.add_cog(Tickets(bot))

@@ -87,7 +87,7 @@ class Settings(commands.Cog):
 
             embed.add_field(
                 name=f"{i+1}. {username}",
-                value=f"🪪 Роль: {role}\n🎫 Закрытых тикетов: **Секрет**\n👍🏻 Лайки: {likes}\n👎🏻 Дизлайки: {dislikes}",
+                value=f"🪪 Роль: {role}\n🎫 Закрытых тикетов: {closed_tickets}\n👍🏻 Лайки: {likes}\n👎🏻 Дизлайки: {dislikes}",
                 inline=False
             )
 
