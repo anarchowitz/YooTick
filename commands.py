@@ -12,6 +12,91 @@ class Settings(commands.Cog):
         self.stats_message = None
         self.embed_color = None
 
+    @commands.slash_command(description="[STAFF] - Просмотр цен")
+    async def price(self, inter):
+        self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        settings = self.db.cursor.fetchone()
+        if settings is not None:
+            self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
+
+        view = disnake.ui.View()
+        select_menu = disnake.ui.Select(
+            placeholder="Выберите пункт",
+            custom_id="price_select",
+            options=[
+                disnake.SelectOption(label="Докупка", value="докупка"),
+                disnake.SelectOption(label="Дополнительные услуги", value="дополнительные услуги")
+            ]
+        )
+        select_menu.callback = self.price_callback
+        view.add_item(select_menu)
+        await inter.response.send_message("Выберите пункт", view=view)
+
+    async def price_callback(self, inter):
+        if inter.data.values[0] == "докупка":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите привилегию",
+                custom_id="privilege_select",
+                options=[
+                    disnake.SelectOption(label="Medium VIP", value="medium_vip"),
+                    disnake.SelectOption(label="Platinum VIP", value="platinum_vip"),
+                    disnake.SelectOption(label="Crystal VIP", value="crystal_vip"),
+                    disnake.SelectOption(label="Crystal+ VIP", value="crystal_plus_vip"),
+                    disnake.SelectOption(label="Назад", value="назад")
+                ]
+            )
+            select_menu.callback = self.privilege_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="Выберите привилегию", view=view)
+        elif inter.data.values[0] == "дополнительные услуги":
+            embed = disnake.Embed(title="Дополнительные услуги", color=self.embed_color)
+            embed.add_field(name="Перенос админ/вип привилегии", value="150р", inline=False)
+            embed.add_field(name="Размут на сайте", value="200р", inline=False)
+            embed.add_field(name="Разморозка прав для админов", value="350р", inline=False)
+            embed.add_field(name="Разморозка прав для спонсора", value="750р", inline=False)
+
+            await inter.response.edit_message(embed=embed)
+
+    async def privilege_callback(self, inter):
+        if inter.data.values[0] == "назад":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите пункт",
+                custom_id="price_select",
+                options=[
+                    disnake.SelectOption(label="Докупка", value="докупка"),
+                    disnake.SelectOption(label="Дополнительные услуги", value="дополнительные услуги")
+                ]
+            )
+            select_menu.callback = self.price_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="Выберите пункт", view=view)
+        else:
+            self.db.cursor.execute("SELECT vip_medium_price, vip_platinum_price, vip_crystal_price, vip_crystalplus_price FROM price_list")
+            prices = self.db.cursor.fetchone()
+
+            if prices is None:
+                await inter.response.edit_message(content="Цены не найдены")
+                return
+
+            embed = disnake.Embed(title="Докупка", color=self.embed_color)
+
+            if inter.data.values[0] == "medium_vip":
+                embed.add_field(name="С Medium VIP на Platinum VIP", value=f"{prices[1] - prices[0]}р", inline=False)
+                embed.add_field(name="С Medium VIP на Crystal VIP", value=f"{prices[2] - prices[0]}р", inline=False)
+                embed.add_field(name="С Medium VIP на Crystal+ VIP", value=f"{prices[3] - prices[0]}р", inline=False)
+            elif inter.data.values[0] == "platinum_vip":
+                embed.add_field(name="С Platinum VIP на Crystal VIP", value=f"{prices[2] - prices[1]}р", inline=False)
+                embed.add_field(name="С Platinum VIP на Crystal+ VIP", value=f"{prices[3] - prices[1]}р", inline=False)
+            elif inter.data.values[0] == "crystal_vip":
+                embed.add_field(name="С Crystal VIP на Crystal+ VIP", value=f"{prices[3] - prices[2]}р", inline=False)
+            elif inter.data.values[0] == "crystal_plus_vip":
+                await inter.response.edit_message(content="Вы уже имеете максимальную привилегию")
+                return
+
+            await inter.response.edit_message(embed=embed)
+
     @commands.slash_command(description="[DEV] - Просмотр статистики по датам")
     async def date_stats(self, inter):
         self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))

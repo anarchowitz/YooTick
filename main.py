@@ -6,13 +6,14 @@ from commands import setupcommands
 
 intents = disnake.Intents.default() 
 intents.message_content = True
-bot = commands.Bot(command_prefix="/", intents=intents, activity=disnake.Activity(type=disnake.ActivityType.playing, name="yooma.su"), owner_id=444574234564362250)
+bot = commands.Bot(command_prefix="/", intents=intents, activity=disnake.Activity(type=disnake.ActivityType.playing, name="yooma.su"))
 
 db = Database("database.db")
 
 @bot.event
 async def on_ready():
     print(f"Бот запущен / {bot.user}\n_________________")
+    db.create_price_list_table()
     db.create_settings_table()
     db.create_staff_list_table()
     db.create_created_tickets_table()

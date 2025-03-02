@@ -5,6 +5,21 @@ class Database:
         self.conn = sqlite3.connect(db_name)
         self.cursor = self.conn.cursor()
 
+    def create_price_list_table(self):
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS price_list (
+                id INTEGER PRIMARY KEY,
+                vip_medium_price INTEGER,
+                vip_platinum_price INTEGER,
+                vip_crystal_price INTEGER,
+                vip_crystalplus_price INTEGER,
+                admin_1lvl_price INTEGER,
+                admin_2lvl_price INTEGER,
+                sponsor_price INTEGER
+            )
+        """)
+        self.conn.commit()
+
     def create_settings_table(self):
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS settings (
