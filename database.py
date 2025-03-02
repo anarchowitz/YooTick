@@ -26,9 +26,7 @@ class Database:
                 username TEXT,
                 user_id INTEGER,
                 role TEXT,
-                closed_tickets INTEGER,
-                likes INTEGER,
-                dislikes INTEGER
+                closed_tickets INTEGER
             )
         """)
         self.conn.commit()

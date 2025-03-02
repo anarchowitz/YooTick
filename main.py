@@ -6,7 +6,7 @@ from commands import setupcommands
 
 intents = disnake.Intents.default() 
 intents.message_content = True
-bot = commands.Bot(command_prefix="/", intents=intents)
+bot = commands.Bot(command_prefix="/", intents=intents, activity=disnake.Activity(type=disnake.ActivityType.playing, name="yooma.su"), owner_id=444574234564362250)
 
 db = Database("database.db")
 
