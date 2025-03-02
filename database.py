@@ -22,7 +22,7 @@ class Database:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS staff_list (
                 id INTEGER PRIMARY KEY,
-                username TEXT,
+                nickname TEXT,
                 user_id INTEGER,
                 role TEXT,
                 closed_tickets INTEGER,
@@ -36,22 +36,9 @@ class Database:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS created_tickets (
                 id INTEGER PRIMARY KEY,
-                thread_id INTEGER,
-                creator_id INTEGER,
-                creator_username TEXT,
-                taken_username TEXT,
-                thread_number INTEGER
-            )
-        """)
-        self.conn.commit()
-
-    def create_date_stats_table(self):
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS date_stats (
-                id INTEGER PRIMARY KEY,
-                username TEXT,
-                date TEXT,
-                closed_tickets INTEGER
+                guild_id INTEGER,
+                ticket_id INTEGER,
+                user_id INTEGER
             )
         """)
         self.conn.commit()
