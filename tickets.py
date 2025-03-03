@@ -6,9 +6,26 @@ class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = Database("database.db")
+    
+    @staticmethod
+    def check_staff_permissions(inter, required_role):
+        db = Database("database.db")
+        db.cursor.execute("SELECT * FROM staff_list WHERE username = ? AND user_id = ?", (inter.author.name, inter.author.id))
+        staff_member = db.cursor.fetchone()
         
+        if staff_member is None:
+            return False
+        
+        if staff_member[4] != required_role:
+            return False
+        
+        return True
+    
     @commands.slash_command(description="[DEV] - Сообщение создания тикетов")
     async def ticketmsg(self, inter):
+        if not self.check_staff_permissions(inter, "dev"):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
         self.db.cursor.execute("""
             SELECT embed_color, category_id, ticket_channel_id 
             FROM settings 
@@ -121,10 +138,8 @@ class Tickets(commands.Cog):
             await inter.response.send_message(f":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True) # type: ignore
 
         if inter.data.custom_id == "take_ticket":
-            self.db.cursor.execute("SELECT * FROM staff_list WHERE username = ?", (inter.author.name,))
-            staff_member = self.db.cursor.fetchone()
-            if staff_member is None:
-                await inter.response.send_message("У вас нету прав что бы взять обращение. Предназначено для сотрудников", ephemeral=True)
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                 return
 
             self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
@@ -223,6 +238,9 @@ class Tickets(commands.Cog):
             await inter.channel.delete()
         
         if inter.data.custom_id == "confirm_close_with_reason_ticket":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
             self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
             taken_username = self.db.cursor.fetchone()[0]
             self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))

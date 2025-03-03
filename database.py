@@ -39,6 +39,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS staff_list (
                 id INTEGER PRIMARY KEY,
                 username TEXT,
+                ticket_name TEXT,
                 user_id INTEGER,
                 role TEXT,
                 closed_tickets INTEGER
@@ -66,6 +67,17 @@ class Database:
                 username TEXT,
                 date TEXT,
                 closed_tickets INTEGER
+            )
+        """)
+        self.conn.commit()
+    
+    def create_fast_commands_table(self):
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS fast_commands (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                command_name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                response TEXT NOT NULL
             )
         """)
         self.conn.commit()
