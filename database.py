@@ -81,6 +81,17 @@ class Database:
             )
         """)
         self.conn.commit()
+    
+    def create_banned_users_table(self):
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS banned_users (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                ban_time TEXT,
+                ban_until TEXT
+            )
+        """)
+        self.conn.commit()
 
     def close(self):
         self.conn.close()

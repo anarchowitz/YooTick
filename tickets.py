@@ -21,6 +21,57 @@ class Tickets(commands.Cog):
         
         return True
     
+    def update_ban_time(self, user_id, time):
+        self.db.cursor.execute("SELECT * FROM banned_users WHERE user_id = ?", (user_id,))
+        banned_user = self.db.cursor.fetchone()
+
+        if banned_user is not None:
+            current_time = datetime.datetime.now()
+            ban_until = current_time + datetime.timedelta(hours=int(time.split(":")[0]), minutes=int(time.split(":")[1]))
+            ban_until = ban_until.strftime("%H:%M")
+
+            self.db.cursor.execute("UPDATE banned_users SET ban_until = ? WHERE user_id = ?", (ban_until, user_id))
+            self.db.conn.commit()
+
+    @commands.slash_command(description="[DEV] - Разрешить создавать тикеты пользователю")
+    async def ticketunban(self, inter, user_id: str):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+        self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (user_id,))
+        self.db.conn.commit()
+        await inter.response.send_message(f"Пользователь с айдишником {user_id} теперь может создавать тикеты.", ephemeral=True)
+
+    @commands.slash_command(description="[DEV] - Запретить создавать тикеты пользователю на время")
+    async def ticketban(self, inter, user_id: str, time: str):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+        time_map = {
+            's': 1,
+            'm': 60,
+            'h': 3600,
+            'd': 86400
+        }
+
+        try:
+            value = int(time[:-1])
+            unit = time[-1]
+            if unit not in time_map:
+                await inter.response.send_message("Неправильный формат времени", ephemeral=True)
+                return
+            total_seconds = value * time_map[unit]
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            ban_until = datetime.datetime.now() + datetime.timedelta(hours=hours, minutes=minutes)
+            ban_until = ban_until.strftime("%H:%M")
+
+            self.db.cursor.execute("INSERT INTO banned_users (user_id, ban_time, ban_until) VALUES (?, ?, ?)", (user_id, time, ban_until))
+            self.db.conn.commit()
+            await inter.response.send_message(f"Пользователь с айдишником {user_id} запрещен создавать тикеты на {time}", ephemeral=True)
+        except ValueError:
+            await inter.response.send_message("Неправильный формат времени", ephemeral=True)
+
     @commands.slash_command(description="[DEV] - Сообщение создания тикетов")
     async def ticketmsg(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
@@ -80,6 +131,33 @@ class Tickets(commands.Cog):
 
         embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
         if inter.data.custom_id == "create_ticket":
+            self.db.cursor.execute("SELECT * FROM banned_users WHERE user_id = ?", (inter.author.id,))
+            banned_user = self.db.cursor.fetchone()
+            if banned_user is not None:
+                if banned_user[3] is not None:
+                    current_time = datetime.datetime.now().strftime("%H:%M")
+                    ban_until = datetime.datetime.strptime(banned_user[3], "%H:%M")
+                    ban_until = ban_until.strftime("%H:%M")
+
+                    if current_time >= ban_until:
+                        self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (inter.author.id,))
+                        self.db.conn.commit()
+                        await inter.response.send_message("✅ / Ваш бан спал. Теперь вы можете создавать тикеты.", ephemeral=True)
+                        return
+                    else:
+                        await inter.response.send_message(f"🚫 / Вам запрещено создавать тикеты до {ban_until}.", ephemeral=True)
+                        return
+                else:
+                    await inter.response.send_message("Вам запрещено создавать тикеты, но мы не можем определить, на сколько времени.", ephemeral=True)
+                    return
+            else:
+                pass
+            self.db.cursor.execute("SELECT * FROM created_tickets WHERE creator_id = ?", (inter.author.id,))
+            existing_ticket = self.db.cursor.fetchone()
+
+            if existing_ticket is not None:
+                await inter.response.send_message("🔸 / У вас уже **имеется открытое обращение**. Ожидайте ответа", ephemeral=True)
+                return
             self.db.cursor.execute("SELECT category_id FROM settings WHERE guild_id = ?", (inter.guild.id,))
             category_id = self.db.cursor.fetchone()[0]
 
@@ -100,7 +178,7 @@ class Tickets(commands.Cog):
                                 (thread.id, inter.author.name, inter.author.id, thread_number))
             self.db.conn.commit()
 
-            embed = disnake.Embed(
+            ticket_embed = disnake.Embed(
                 title="Спасибо за обращение в клиенсткую поддержку",
                 description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
                 "▎Важные моменты:\n"
@@ -108,16 +186,18 @@ class Tickets(commands.Cog):
                 "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
                 "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
                 "**Несоблюдение этих правил может привести к наказанию**.",
-                color=embed_color)
-            embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-            embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                color=embed_color
+            )
+            ticket_embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+            ticket_embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+
             view = disnake.ui.View(timeout=None)
             take_button = disnake.ui.Button(label="Взять обращение", emoji="📝", custom_id="take_ticket", style=disnake.ButtonStyle.primary)
             close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
             view.add_item(take_button)
             view.add_item(close_button)
 
-            await thread.send(embed=embed, view=view)
+            await thread.send(embed=ticket_embed, view=view)
             await thread.add_user(inter.author)
             
             self.db.cursor.execute("SELECT primetime FROM settings WHERE guild_id = ?", (inter.guild.id,))
@@ -141,6 +221,25 @@ class Tickets(commands.Cog):
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                 return
+
+            ticket_embed = disnake.Embed(
+                title="Спасибо за обращение в клиенсткую поддержку",
+                description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
+                "▎Важные моменты:\n"
+                "- Не открывайте тикеты, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
+                "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
+                "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
+                "**Несоблюдение этих правил может привести к наказанию**.",
+                color=embed_color
+            )
+            ticket_embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+            ticket_embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+
+            view = disnake.ui.View(timeout=None)
+            close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
+            view.add_item(close_button)
+
+            await inter.message.edit(embed=ticket_embed, view=view)
 
             self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
             taken_ticket = self.db.cursor.fetchone()

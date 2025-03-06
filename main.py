@@ -20,6 +20,7 @@ async def on_ready():
     db.create_created_tickets_table()
     db.create_date_stats_table()
     db.create_fast_commands_table()
+    db.create_banned_users_table()
     db.cursor.execute("SELECT 1 FROM fast_commands LIMIT 1")
     if not db.cursor.fetchone():
         default_commands = [

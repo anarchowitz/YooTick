@@ -26,29 +26,6 @@ class Settings(commands.Cog):
         
         return True
 
-    @commands.slash_command(description="[DEV] - Просмотр быстрых команд")
-    async def fastcommands(self, inter):
-        if not self.check_staff_permissions(inter, "dev"):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-        self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
-        settings = self.db.cursor.fetchone()
-        if settings is not None:
-            self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
-        embed = disnake.Embed(title="Список быстрых команд", color=self.embed_color)
-
-        self.db.cursor.execute("SELECT command_name, description FROM fast_commands")
-        fastcommands = self.db.cursor.fetchall()
-        
-        n = 0
-        for fastcommand in fastcommands:
-            n += 1
-            command_name = f"{n}) `.{fastcommand[0]}`"
-            description = fastcommand[1]
-            embed.add_field(name=command_name, value=description, inline=False)
-
-        await inter.response.send_message(embed=embed)
-
     @commands.slash_command(description="[STAFF] - Просмотр цен")
     async def price(self, inter):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
