@@ -4,3 +4,8 @@ __pycache__/database.cpython-312.pyc
 __pycache__/commands.cpython-312.pyc
 __pycache__/database.cpython-312.pyc
 __pycache__/tickets.cpython-312.pyc
+__pycache__/commands.cpython-313.pyc
+__pycache__/database.cpython-313.pyc
+.gitignore
+__pycache__/tickets.cpython-313.pyc
+__pycache__/fastcommands.cpython-313.pyc
