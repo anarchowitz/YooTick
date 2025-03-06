@@ -182,7 +182,8 @@ class Settings(commands.Cog):
 
         self.db.cursor.execute("SELECT * FROM staff_list")
         staff_members = self.db.cursor.fetchall()
-        staff_members.sort(key=lambda x: x[4], reverse=True)
+        
+        staff_members.sort(key=lambda x: x[5], reverse=True)
 
         embed = disnake.Embed(
             title="Статистика сотрудников",
@@ -226,7 +227,7 @@ class Settings(commands.Cog):
                 self.page -= 1
                 self.db.cursor.execute("SELECT * FROM staff_list")
                 staff_members = self.db.cursor.fetchall()
-                staff_members.sort(key=lambda x: x[4], reverse=True)
+                staff_members.sort(key=lambda x: x[5], reverse=True)  # Добавляем сортировку по количеству закрытых тикетов
 
                 embed = disnake.Embed(
                     title="Статистика сотрудников",
@@ -245,7 +246,7 @@ class Settings(commands.Cog):
 
                     embed.add_field(
                         name=f"{i+1}. {username}",
-                        value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫  Закрытых тикетов: **Секрет**",
+                        value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: **Секрет**",
                         inline=False
                     )
 
@@ -258,7 +259,7 @@ class Settings(commands.Cog):
             self.page += 1
             self.db.cursor.execute("SELECT * FROM staff_list")
             staff_members = self.db.cursor.fetchall()
-            staff_members.sort(key=lambda x: x[4], reverse=True)
+            staff_members.sort(key=lambda x: x[5], reverse=True)  # Добавляем сортировку по количеству закрытых тикетов
 
             embed = disnake.Embed(
                 title="Статистика сотрудников",
@@ -289,7 +290,7 @@ class Settings(commands.Cog):
                 return
             self.db.cursor.execute("SELECT * FROM staff_list")
             staff_members = self.db.cursor.fetchall()
-            staff_members.sort(key=lambda x: x[4], reverse=True)
+            staff_members.sort(key=lambda x: x[5], reverse=True)  # Добавляем сортировку по количеству закрытых тикетов
 
             embed = disnake.Embed(
                 title="Статистика сотрудников",

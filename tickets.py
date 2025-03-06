@@ -257,7 +257,13 @@ class Tickets(commands.Cog):
                                 (inter.author.name, inter.channel.id))
             self.db.conn.commit()
 
-            new_name = f"{inter.author.name}-ticket-{thread_number}"
+            self.db.cursor.execute("SELECT ticket_name FROM staff_list WHERE username = ?", (inter.author.name,))
+            ticket_name = self.db.cursor.fetchone()
+            if ticket_name is not None:
+                ticket_name = ticket_name[0]
+            else:
+                ticket_name = taken_username
+            new_name = f"{ticket_name}-ticket-{thread_number}"
             await inter.channel.edit(name=new_name)
         
         if inter.data.custom_id == "close_ticket":
@@ -278,7 +284,31 @@ class Tickets(commands.Cog):
         
         if inter.data.custom_id == "confirm_close_ticket":
             self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            taken_username = self.db.cursor.fetchone()[0]
+            taken_username = self.db.cursor.fetchone()
+            if taken_username is None or taken_username[0] is None:
+                embed1 = disnake.Embed(
+                    description=f"Тикет был закрыт - {inter.user.mention}",
+                    color=0xF0C43F,
+                )
+                embed2 = disnake.Embed(
+                    description=f"Тикет будет удален через несколько секунд",
+                    color=0xF0C43F,
+                )
+                await inter.response.defer()
+                await inter.channel.send(embed=embed1)
+                await inter.channel.send(embed=embed2)
+                self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                self.db.conn.commit()
+                await asyncio.sleep(5)
+                await inter.channel.delete()
+                return
+            taken_username = taken_username[0]
+            self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
+            closed_tickets = self.db.cursor.fetchone()
+            if closed_tickets is not None:
+                closed_tickets = closed_tickets[0]
+                self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, taken_username))
+                self.db.conn.commit()
             user = inter.guild.get_member_named(taken_username)
             embed1 = disnake.Embed(
                 description=f"Тикет был закрыт - {inter.user.mention}",
@@ -291,7 +321,6 @@ class Tickets(commands.Cog):
             await inter.response.defer()
             await inter.channel.send(embed=embed1)
             await inter.channel.send(embed=embed2)
-
             self.db.cursor.execute("SELECT creator_id, creator_username, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
             creator_id, creator_username, thread_number = self.db.cursor.fetchone()
             creator = await self.bot.fetch_user(creator_id)
@@ -308,8 +337,6 @@ class Tickets(commands.Cog):
                 #embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                 embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
                 await creator.send(embed=embed)
-
-
             self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
             closed_tickets = self.db.cursor.fetchone()[0]
             self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, taken_username))
