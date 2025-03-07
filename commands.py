@@ -31,13 +31,6 @@ class Settings(commands.Cog):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
-        if inter.guild is not None:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
-        else:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE user_id = ?", (inter.author.id,))
-        settings = self.db.cursor.fetchone()
-        if settings is not None:
-            self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
 
         view = disnake.ui.View()
         select_menu = disnake.ui.Select(
@@ -45,17 +38,89 @@ class Settings(commands.Cog):
             custom_id="price_select",
             options=[
                 disnake.SelectOption(label="Докупка", value="докупка"),
-                disnake.SelectOption(label="Дополнительные услуги", value="дополнительные услуги")
+                disnake.SelectOption(label="Дополнительные услуги", value="дополнительные услуги"),
+                disnake.SelectOption(label="Авто-подсчет возврата", value="авто-подсчет возврата"),
             ]
         )
         select_menu.callback = self.price_callback
         view.add_item(select_menu)
+
         await inter.response.send_message("", view=view)
+
+    async def admin_level_callback(self, inter):
+        if not self.check_staff_permissions(inter, "dev"):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        admin_level = inter.data.values[0]
+
+        modal = disnake.ui.Modal(
+            title="Авто-подсчет возврата",
+            custom_id="refund_modal",
+            components=[
+                disnake.ui.ActionRow(
+                    disnake.ui.TextInput(
+                        label="Уровень админки",
+                        placeholder="1lvl или 2lvl или sponsor",
+                        custom_id="admin_level_input",
+                        style=disnake.TextInputStyle.short,
+                        value=admin_level
+                    )
+                ),
+                disnake.ui.ActionRow(
+                    disnake.ui.TextInput(
+                        label="Дата покупки админки (дд.мм.гггг)",
+                        placeholder="12.09.2024",
+                        custom_id="date_input",
+                        style=disnake.TextInputStyle.short,
+                    )
+                ),
+            ],
+        )
+
+        await inter.response.send_modal(modal)
+
+    async def refund_modal_callback(self, inter):
+        if not self.check_staff_permissions(inter, "dev"):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        admin_level = inter.text_values['admin_level_input']
+        date_str = inter.text_values['date_input']
+        date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
+
+        current_date = datetime.date.today()
+        months_diff = (current_date.year - date.year) * 12 + current_date.month - date.month
+
+        self.db.cursor.execute("SELECT * FROM price_list")
+        prices = self.db.cursor.fetchone()
+
+        if prices is None:
+            await inter.response.send_message("Цены не найдены", ephemeral=True)
+            return
+
+        if admin_level == "1lvl":
+            price = prices[5]
+        elif admin_level == "2lvl":
+            price = prices[6]
+        elif admin_level == "sponsor":
+            price = prices[7]
+
+        refund = price / 3
+        remaining_price = price - refund
+
+        if months_diff > 5:
+            refund = price / 3
+        else:
+            refund += remaining_price * (1 - (months_diff * 20 / 100))
+
+        await inter.response.send_message(f"Авто-подсчет возврата: {int(refund)} рублей", ephemeral=True)
 
     async def price_callback(self, inter):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
+
         if inter.data.values[0] == "докупка":
             view = disnake.ui.View()
             select_menu = disnake.ui.Select(
@@ -80,6 +145,20 @@ class Settings(commands.Cog):
             embed.add_field(name="Разморозка прав для спонсора", value="750р", inline=False)
 
             await inter.response.edit_message(embed=embed)
+        elif inter.data.values[0] == "авто-подсчет возврата":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите пункт",
+                custom_id="admin_level_select",
+                options=[
+                    disnake.SelectOption(label="Админ 1 уровня", value="admin_1lvl"),
+                    disnake.SelectOption(label="Админ 2 уровня", value="admin_2lvl"),
+                    disnake.SelectOption(label="Спонсор", value="sponsor"),
+                ]
+            )
+            select_menu.callback = self.admin_level_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="", view=view)
 
     async def privilege_callback(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
@@ -379,6 +458,40 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
+        if inter.data.custom_id == "refund_modal":
+            admin_level = inter.text_values['admin_level_input']
+            date_str = inter.text_values['date_input']
+            date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
+
+            current_date = datetime.date.today()
+            months_diff = (current_date.year - date.year) * 12 + current_date.month - date.month
+
+            self.db.cursor.execute("SELECT * FROM price_list")
+            prices = self.db.cursor.fetchone()
+
+            if prices is None:
+                await inter.response.send_message("Цены не найдены", ephemeral=True)
+                return
+
+            if admin_level == "admin_1lvl":
+                price = prices[5]
+            elif admin_level == "admin_2lvl":
+                price = prices[6]
+            elif admin_level == "sponsor":
+                price = prices[7]
+            else:
+                await inter.response.send_message("Неправильный уровень админки", ephemeral=True)
+                return
+
+            refund = price / 3
+            remaining_price = price - refund
+
+            if months_diff > 5:
+                refund = price / 3
+            else:
+                refund += remaining_price * (1 - (months_diff * 20 / 100))
+
+            await inter.response.send_message(f"Авто-подсчет возврата: {int(refund)} рублей", ephemeral=True)
         if inter.data.custom_id == "settings_modal":
             color = inter.text_values['color']
             category_id = int(inter.text_values['category_id'])
