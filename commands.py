@@ -48,7 +48,7 @@ class Settings(commands.Cog):
         await inter.response.send_message("", view=view)
 
     async def admin_level_callback(self, inter):
-        if not self.check_staff_permissions(inter, "dev"):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
 
@@ -81,7 +81,7 @@ class Settings(commands.Cog):
         await inter.response.send_modal(modal)
 
     async def refund_modal_callback(self, inter):
-        if not self.check_staff_permissions(inter, "dev"):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
 
@@ -161,7 +161,7 @@ class Settings(commands.Cog):
             await inter.response.edit_message(content="", view=view)
 
     async def privilege_callback(self, inter):
-        if not self.check_staff_permissions(inter, "dev"):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
         if inter.data.values[0] == "назад":
