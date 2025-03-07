@@ -27,11 +27,11 @@ class Tickets(commands.Cog):
 
         if banned_user is not None:
             current_time = datetime.datetime.now()
-            ban_until = current_time + datetime.timedelta(hours=int(time.split(":")[0]), minutes=int(time.split(":")[1]))
-            ban_until = ban_until.strftime("%H:%M")
+            ban_until = datetime.datetime.strptime(banned_user[3], "%d.%m.%Y %H:%M")
 
-            self.db.cursor.execute("UPDATE banned_users SET ban_until = ? WHERE user_id = ?", (ban_until, user_id))
-            self.db.conn.commit()
+            if current_time >= ban_until:
+                self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (user_id,))
+                self.db.conn.commit()
 
     @commands.slash_command(description="[DEV] - Разрешить создавать тикеты пользователю")
     async def ticketunban(self, inter, user_id: str):
@@ -61,12 +61,10 @@ class Tickets(commands.Cog):
                 await inter.response.send_message("Неправильный формат времени", ephemeral=True)
                 return
             total_seconds = value * time_map[unit]
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            ban_until = datetime.datetime.now() + datetime.timedelta(hours=hours, minutes=minutes)
-            ban_until = ban_until.strftime("%H:%M")
+            ban_until = datetime.datetime.now() + datetime.timedelta(seconds=total_seconds)
+            ban_until_str = ban_until.strftime("%d.%m.%Y %H:%M")
 
-            self.db.cursor.execute("INSERT INTO banned_users (user_id, ban_time, ban_until) VALUES (?, ?, ?)", (user_id, time, ban_until))
+            self.db.cursor.execute("INSERT INTO banned_users (user_id, ban_time, ban_until) VALUES (?, ?, ?)", (user_id, time, ban_until_str))
             self.db.conn.commit()
             await inter.response.send_message(f"Пользователь с айдишником {user_id} запрещен создавать тикеты на {time}", ephemeral=True)
         except ValueError:
@@ -77,11 +75,18 @@ class Tickets(commands.Cog):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
-        self.db.cursor.execute("""
-            SELECT embed_color, category_id, ticket_channel_id 
-            FROM settings 
-            WHERE guild_id = ?
-        """, (inter.guild.id,))
+        if inter.guild is not None:
+            self.db.cursor.execute(""" 
+                SELECT embed_color, category_id, ticket_channel_id 
+                FROM settings 
+                WHERE guild_id = ?
+            """, (inter.guild.id,))
+        else:
+            self.db.cursor.execute(""" 
+                SELECT embed_color, category_id, ticket_channel_id 
+                FROM settings 
+                WHERE user_id = ?
+            """, (inter.author.id,))
         settings = self.db.cursor.fetchone()
 
         if settings is None:
@@ -92,8 +97,12 @@ class Tickets(commands.Cog):
         category_id = settings[1]
         channel_id = settings[2]
 
-        category = inter.guild.get_channel(category_id)
-        channel = inter.guild.get_channel(channel_id)
+        if inter.guild is not None:
+            category = inter.guild.get_channel(category_id)
+            channel = inter.guild.get_channel(channel_id)
+        else:
+            category = None
+            channel = None
 
         if category is None or channel is None:
             await inter.response.send_message("Категория или канал не найдены!")
@@ -115,13 +124,19 @@ class Tickets(commands.Cog):
         button = disnake.ui.Button(label="Создать обращение", emoji="📨", custom_id="create_ticket", style=disnake.ButtonStyle.primary)
         view.add_item(button)
 
-        await channel.send(embed=embed, view=view)
+        if inter.guild is not None:
+            await channel.send(embed=embed, view=view)
+        else:
+            await inter.response.send_message("Эта команда может быть использована только на сервере", ephemeral=True)
+            return
         await inter.response.send_message("Отправил сообщение.", ephemeral=True)
 
     @commands.Cog.listener()
     async def on_button_click(self, inter):
-        self.db.cursor.execute("""
-            SELECT embed_color, category_id, ticket_channel_id FROM settings WHERE guild_id = ?
+        self.db.cursor.execute(""" 
+            SELECT embed_color, category_id, ticket_channel_id 
+            FROM settings 
+            WHERE guild_id = ?
         """, (inter.guild.id,))
         settings = self.db.cursor.fetchone()
 
@@ -134,21 +149,16 @@ class Tickets(commands.Cog):
             self.db.cursor.execute("SELECT * FROM banned_users WHERE user_id = ?", (inter.author.id,))
             banned_user = self.db.cursor.fetchone()
             if banned_user is not None:
-                if banned_user[3] is not None:
-                    current_time = datetime.datetime.now().strftime("%H:%M")
-                    ban_until = datetime.datetime.strptime(banned_user[3], "%H:%M")
-                    ban_until = ban_until.strftime("%H:%M")
+                current_time = datetime.datetime.now()
+                ban_until = datetime.datetime.strptime(banned_user[3], "%d.%m.%Y %H:%M")
 
-                    if current_time >= ban_until:
-                        self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (inter.author.id,))
-                        self.db.conn.commit()
-                        await inter.response.send_message("✅ / Ваш бан спал. Теперь вы можете создавать тикеты.", ephemeral=True)
-                        return
-                    else:
-                        await inter.response.send_message(f"🚫 / Вам запрещено создавать тикеты до {ban_until}.", ephemeral=True)
-                        return
+                if current_time >= ban_until:
+                    self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (inter.author.id,))
+                    self.db.conn.commit()
+                    await inter.response.send_message("✅ / Ваш бан спал. Теперь вы можете создавать тикеты.", ephemeral=True)
+                    return
                 else:
-                    await inter.response.send_message("Вам запрещено создавать тикеты, но мы не можем определить, на сколько времени.", ephemeral=True)
+                    await inter.response.send_message(f"🚫 / Вам запрещено создавать тикеты до {ban_until.strftime('%d.%m.%Y %H:%M')}.", ephemeral=True)
                     return
             else:
                 pass
@@ -215,7 +225,7 @@ class Tickets(commands.Cog):
                 if not (start_hour <= current_hour < end_hour or (start_hour == current_hour and start_minute <= current_minute) or (end_hour == current_hour and current_minute < end_minute)):
                     await thread.send(f"<@{inter.author.id}>, В данный момент нерабочее время, и время ответа может занять больше времени, чем обычно.\n Пожалуйста, оставайтесь на связи, и мы ответим вам, как только сможем.")
 
-            await inter.response.send_message(f":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True) # type: ignore
+            await inter.response.send_message(rf":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True) # type: ignore
 
         if inter.data.custom_id == "take_ticket":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):

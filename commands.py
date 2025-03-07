@@ -31,7 +31,10 @@ class Settings(commands.Cog):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
-        self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        if inter.guild is not None:
+            self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        else:
+            self.db.cursor.execute("SELECT embed_color FROM settings WHERE user_id = ?", (inter.author.id,))
         settings = self.db.cursor.fetchone()
         if settings is not None:
             self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
@@ -94,7 +97,7 @@ class Settings(commands.Cog):
             )
             select_menu.callback = self.price_callback
             view.add_item(select_menu)
-            await inter.response.edit_message(content="Выберите пункт", view=view)
+            await inter.response.edit_message(content="", view=view)
         else:
             self.db.cursor.execute("SELECT vip_medium_price, vip_platinum_price, vip_crystal_price, vip_crystalplus_price FROM price_list")
             prices = self.db.cursor.fetchone()
@@ -125,7 +128,10 @@ class Settings(commands.Cog):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
-        self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        if inter.guild is not None:
+            self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        else:
+            self.db.cursor.execute("SELECT embed_color FROM settings WHERE user_id = ?", (inter.author.id,))
         settings = self.db.cursor.fetchone()
         if settings is not None:
             self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
@@ -168,21 +174,24 @@ class Settings(commands.Cog):
         for username, closed_tickets in stats:
             embed.add_field(name=username, value=str(closed_tickets), inline=False)
 
-        await inter.response.send_message(embed=embed)
+        await inter.response.edit_message(embed=embed, content="")
 
     @commands.slash_command(description="[DEV] - Статистика сотрудников")
     async def stats(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
-        self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        if inter.guild is not None:
+            self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        else:
+            self.db.cursor.execute("SELECT embed_color FROM settings WHERE user_id = ?", (inter.author.id,))
         settings = self.db.cursor.fetchone()
         if settings is not None:
             self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
 
-        self.db.cursor.execute("SELECT * FROM staff_list")
+        self.db.cursor.execute("SELECT * FROM staff_list WHERE user_id = ?", (inter.author.id,))
         staff_members = self.db.cursor.fetchall()
-        
+            
         staff_members.sort(key=lambda x: x[5], reverse=True)
 
         embed = disnake.Embed(
@@ -323,6 +332,9 @@ class Settings(commands.Cog):
     async def settings(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+        if inter.guild is None:
+            await inter.response.send_message("Эта команда может быть использована только на сервере", ephemeral=True)
             return
         modal = disnake.ui.Modal(
             title="Настройки",
