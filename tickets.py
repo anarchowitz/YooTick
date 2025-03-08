@@ -33,16 +33,16 @@ class Tickets(commands.Cog):
                 self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (user_id,))
                 self.db.conn.commit()
 
-    @commands.slash_command(description="[DEV] - Разрешить создавать тикеты пользователю")
+    @commands.slash_command(description="[DEV] - Разрешить создавать обращение пользователю")
     async def ticketunban(self, inter, user_id: str):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
         self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (user_id,))
         self.db.conn.commit()
-        await inter.response.send_message(f"Пользователь с айдишником {user_id} теперь может создавать тикеты.", ephemeral=True)
+        await inter.response.send_message(f"Пользователь с айдишником {user_id} теперь может создавать обращение.", ephemeral=True)
 
-    @commands.slash_command(description="[DEV] - Запретить создавать тикеты пользователю на время")
+    @commands.slash_command(description="[DEV] - Запретить создавать обращение пользователю на время")
     async def ticketban(self, inter, user_id: str, time: str):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -66,11 +66,11 @@ class Tickets(commands.Cog):
 
             self.db.cursor.execute("INSERT INTO banned_users (user_id, ban_time, ban_until) VALUES (?, ?, ?)", (user_id, time, ban_until_str))
             self.db.conn.commit()
-            await inter.response.send_message(f"Пользователь с айдишником {user_id} запрещен создавать тикеты на {time}", ephemeral=True)
+            await inter.response.send_message(f"Пользователь с айдишником {user_id} запрещен создавать обращение на {time}", ephemeral=True)
         except ValueError:
             await inter.response.send_message("Неправильный формат времени", ephemeral=True)
 
-    @commands.slash_command(description="[DEV] - Сообщение создания тикетов")
+    @commands.slash_command(description="[DEV] - Сообщение создания обращения")
     async def ticketmsg(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -112,7 +112,7 @@ class Tickets(commands.Cog):
             title="Создание обращения в клиентскую поддержку",
             description="Мы настоятельно рекомендуем **подробно** описывать ваши просьбы или проблемы. Это поможет нам оказать вам **быструю и эффективную помощь**.\n\n"
             "▎Важные моменты:\n"
-            "- Не открывайте тикеты, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
+            "- Не открывайте обращения, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
             "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
             "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
             "**Несоблюдение этих правил может привести к наказанию**.",
@@ -155,10 +155,10 @@ class Tickets(commands.Cog):
                 if current_time >= ban_until:
                     self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (inter.author.id,))
                     self.db.conn.commit()
-                    await inter.response.send_message("✅ / Ваш бан спал. Теперь вы можете создавать тикеты.", ephemeral=True)
+                    await inter.response.send_message("✅ / Ваш бан спал. Теперь вы можете создавать обращение.", ephemeral=True)
                     return
                 else:
-                    await inter.response.send_message(f"🚫 / Вам запрещено создавать тикеты до {ban_until.strftime('%d.%m.%Y %H:%M')}.", ephemeral=True)
+                    await inter.response.send_message(f"🚫 / Вам запрещено создавать ы до {ban_until.strftime('%d.%m.%Y %H:%M')}.", ephemeral=True)
                     return
             else:
                 pass
@@ -192,7 +192,7 @@ class Tickets(commands.Cog):
                 title="Спасибо за обращение в клиенсткую поддержку",
                 description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
                 "▎Важные моменты:\n"
-                "- Не открывайте тикеты, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
+                "- Не открывайте обращение, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
                 "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
                 "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
                 "**Несоблюдение этих правил может привести к наказанию**.",
@@ -236,7 +236,7 @@ class Tickets(commands.Cog):
                 title="Спасибо за обращение в клиенсткую поддержку",
                 description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
                 "▎Важные моменты:\n"
-                "- Не открывайте тикеты, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
+                "- Не открывайте обращение, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
                 "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
                 "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
                 "**Несоблюдение этих правил может привести к наказанию**.",
@@ -244,23 +244,26 @@ class Tickets(commands.Cog):
             )
             ticket_embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
             ticket_embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+            ticket_embed.add_field(name=f"", value=f"🔍 Взял обращение - {inter.author.mention}", inline=False)
 
             view = disnake.ui.View(timeout=None)
             close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
+            transfer_button = disnake.ui.Button(label="Передать обращение", emoji="📝", custom_id="transfer_ticket", style=disnake.ButtonStyle.primary)
             view.add_item(close_button)
+            view.add_item(transfer_button)
 
             await inter.message.edit(embed=ticket_embed, view=view)
 
             self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
             taken_ticket = self.db.cursor.fetchone()
             if taken_ticket is not None and taken_ticket[0] is not None:
-                await inter.response.send_message("Этот тикет уже взят!", ephemeral=True)
+                await inter.response.send_message("Этот обращение уже взят!", ephemeral=True)
                 return
 
             self.db.cursor.execute("SELECT creator_username, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
             creator_username, thread_number = self.db.cursor.fetchone()
             
-            embed = disnake.Embed(title="", description=f"Успешно взялся за тикет - {inter.author.mention}", color=0xF0C43F,)
+            embed = disnake.Embed(title="", description=f"Успешно взялся за обращение - {inter.author.mention}", color=0xF0C43F,)
             await inter.response.send_message(embed=embed)
 
             self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", 
@@ -279,7 +282,7 @@ class Tickets(commands.Cog):
         if inter.data.custom_id == "close_ticket":
             confirmation_embed = disnake.Embed(
                 title="Подтверждение",
-                description="Вы уверены что хотите закрыть тикет?",
+                description="Вы уверены что хотите закрыть обращение?",
                 color=0xF0C43F,
             )
             view = disnake.ui.View(timeout=30)
@@ -297,11 +300,11 @@ class Tickets(commands.Cog):
             taken_username = self.db.cursor.fetchone()
             if taken_username is None or taken_username[0] is None:
                 embed1 = disnake.Embed(
-                    description=f"Тикет был закрыт - {inter.user.mention}",
+                    description=f"Обращение был закрыт - {inter.user.mention}",
                     color=0xF0C43F,
                 )
                 embed2 = disnake.Embed(
-                    description=f"Тикет будет удален через несколько секунд",
+                    description=f"Обращение будет удален через несколько секунд",
                     color=0xF0C43F,
                 )
                 await inter.response.defer()
@@ -321,11 +324,11 @@ class Tickets(commands.Cog):
                 self.db.conn.commit()
             user = inter.guild.get_member_named(taken_username)
             embed1 = disnake.Embed(
-                description=f"Тикет был закрыт - {inter.user.mention}",
+                description=f"Обращение был закрыт - {inter.user.mention}",
                 color=0xF0C43F,
             )
             embed2 = disnake.Embed(
-                description=f"Тикет будет удален через несколько секунд",
+                description=f"Обращение будет удален через несколько секунд",
                 color=0xF0C43F,
             )
             await inter.response.defer()
@@ -336,14 +339,14 @@ class Tickets(commands.Cog):
             creator = await self.bot.fetch_user(creator_id)
             if creator is not None:
                 date_str = datetime.date.today().strftime("%d.%m.%Y")
-                embed = disnake.Embed(title="Ваш тикет был закрыт",timestamp=datetime.datetime.now(),color=embed_color)
+                embed = disnake.Embed(title="Ваш обращение было закрыт",timestamp=datetime.datetime.now(),color=embed_color)
                 embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
                 embed.add_field(name=":unlock: Открыл", value=creator.name, inline=True)
                 embed.add_field(name=":lock: Закрыл", value=inter.author.name, inline=True)
                 embed.add_field(name="", value="", inline=False)
                 staff_member = self.db.cursor.execute("SELECT username FROM staff_list WHERE username = ?", (inter.author.name,)).fetchone()
                 if staff_member is not None:
-                    embed.add_field(name=":mag_right: Взял тикет", value=f"<@{inter.author.id}>", inline=True)
+                    embed.add_field(name=":mag_right: Взял обращение", value=f"<@{inter.author.id}>", inline=True)
                 #embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                 embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
                 await creator.send(embed=embed)
@@ -405,11 +408,11 @@ class Tickets(commands.Cog):
                     self.taken_username = taken_username
                     self.bot = bot
                     self.db = Database("database.db")
-                    super().__init__(title="Причина закрытия тикета", components=[
+                    super().__init__(title="Причина закрытия обращения", components=[
                         disnake.ui.ActionRow(
                             disnake.ui.TextInput(
                                 label="Причина",
-                                placeholder="Введите причину закрытия тикета",
+                                placeholder="Введите причину закрытия обращения",
                                 style=disnake.TextInputStyle.short,
                                 custom_id="reason_input"
                             )
@@ -418,11 +421,11 @@ class Tickets(commands.Cog):
 
                 async def callback(self, inter):
                     embed1 = disnake.Embed(
-                        description=f"Тикет был закрыт - {inter.user.mention}",
+                        description=f"Обращение был закрыт - {inter.user.mention}",
                         color=embed_color
                     )
                     embed2 = disnake.Embed(
-                        description=f"Тикет будет удален через несколько секунд",
+                        description=f"Обращение будет удален через несколько секунд",
                         color=embed_color
                     )
                     await inter.response.send_message(embeds=[embed1, embed2])
@@ -432,14 +435,14 @@ class Tickets(commands.Cog):
                     creator = await self.bot.fetch_user(creator_id)
                     if creator is not None:
                         date_str = datetime.date.today().strftime("%d.%m.%Y")
-                        embed = disnake.Embed(title="Ваш тикет был закрыт",timestamp=datetime.datetime.now(),color=embed_color)
+                        embed = disnake.Embed(title="Ваш обращение было закрыто",timestamp=datetime.datetime.now(),color=embed_color)
                         embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
                         embed.add_field(name=":unlock: Открыл", value=creator.name, inline=True)
                         embed.add_field(name=":lock: Закрыл", value=inter.author.name, inline=True)
                         embed.add_field(name="", value="", inline=False)
                         staff_member = self.db.cursor.execute("SELECT username FROM staff_list WHERE username = ?", (inter.author.name,)).fetchone()
                         if staff_member is not None:
-                            embed.add_field(name=":mag_right: Взял тикет", value=f"<@{inter.author.id}>", inline=True)
+                            embed.add_field(name=":mag_right: Взял обращение", value=f"<@{inter.author.id}>", inline=True)
                         embed.add_field(name=":pencil: Сообщение", value=reason, inline=False)
                         #embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                         embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
@@ -451,6 +454,81 @@ class Tickets(commands.Cog):
                     await inter.channel.delete()
 
             await inter.response.send_modal(CloseTicketModal(taken_username, self.bot))
+
+        if inter.data.custom_id == "transfer_ticket":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+
+            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+            taken_username = self.db.cursor.fetchone()[0]
+
+            if taken_username is None:
+                await inter.response.send_message("Это обращение не взято!", ephemeral=True)
+                return
+
+            if taken_username != inter.author.name:
+                await inter.response.send_message("Вы не можете передать обращение, который не принадлежит вам!", ephemeral=True)
+                return
+
+            class TransferTicketModal(disnake.ui.Modal):
+                def __init__(self, bot):
+                    self.bot = bot
+                    self.db = Database("database.db")
+                    super().__init__(title="Передать обращение", components=[
+                        disnake.ui.ActionRow(
+                            disnake.ui.TextInput(
+                                label="Юзернейм сотрудника",
+                                placeholder="Введите юзернейм сотрудника",
+                                style=disnake.TextInputStyle.short,
+                                custom_id="staff_name_input"
+                            )
+                        )
+                    ])
+
+                async def callback(self, inter):
+                    staff_name = inter.text_values['staff_name_input']
+                    self.db.cursor.execute("SELECT * FROM staff_list WHERE username = ?", (staff_name,))
+                    staff_member = self.db.cursor.fetchone()
+
+                    if staff_member is None:
+                        await inter.response.send_message("Сотрудник не найден!", ephemeral=True)
+                        return
+
+                    self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", (staff_name, inter.channel.id))
+                    self.db.conn.commit()
+
+                    thread_number = self.db.cursor.execute("SELECT thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,)).fetchone()[0]
+                    new_name = f"{staff_name}-ticket-{thread_number}"
+                    await inter.channel.edit(name=new_name)
+
+                    self.db.cursor.execute("SELECT user_id FROM staff_list WHERE username = ?", (staff_name,))
+                    staff_member_id = self.db.cursor.fetchone()[0]
+                    embed = disnake.Embed(title="", description=f"Обращение было передано - <@{staff_member_id}>", color=0xF0C43F)
+                    await inter.response.send_message(embed=embed)
+                    ticket_embed = disnake.Embed(
+                        title="Спасибо за обращение в клиенсткую поддержку",
+                        description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
+                        "▎Важные моменты:\n"
+                        "- Не открывайте обращение, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
+                        "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
+                        "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
+                        "**Несоблюдение этих правил может привести к наказанию**.",
+                        color=embed_color
+                    )
+                    ticket_embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                    ticket_embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                    ticket_embed.add_field(name=f"", value=f"🔍 Взял обращение - <@{staff_member_id}>", inline=False)
+
+                    view = disnake.ui.View(timeout=None)
+                    close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
+                    transfer_button = disnake.ui.Button(label="Передать обращение", emoji="📝", custom_id="transfer_ticket", style=disnake.ButtonStyle.primary)
+                    view.add_item(close_button)
+                    view.add_item(transfer_button)
+
+                    await inter.message.edit(embed=ticket_embed, view=view)
+
+            await inter.response.send_modal(TransferTicketModal(self.bot))
 
 
 def setuptickets(bot):
