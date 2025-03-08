@@ -168,65 +168,79 @@ class Tickets(commands.Cog):
             if existing_ticket is not None:
                 await inter.response.send_message("🔸 / У вас уже **имеется открытое обращение**. Ожидайте ответа", ephemeral=True)
                 return
-            self.db.cursor.execute("SELECT category_id FROM settings WHERE guild_id = ?", (inter.guild.id,))
-            category_id = self.db.cursor.fetchone()[0]
+            class CreateTicketModal(disnake.ui.Modal):
+                def __init__(self):
+                    super().__init__(title="Создание обращения", components=[
+                        disnake.ui.ActionRow(
+                            disnake.ui.TextInput(
+                                label="Краткое описание обращения",
+                                placeholder="Введите краткое описание обращения",
+                                style=disnake.TextInputStyle.short,
+                                custom_id="description_input",
+                                min_length=3
+                            )
+                        )
+                    ])
+                    self.db = Database("database.db")
 
-            category = inter.guild.get_channel(category_id)
+                async def callback(self, inter):
+                    description = inter.text_values['description_input']
+                    if len(description) < 3:
+                        await inter.response.send_message("Минимальная длина ввода - 3 символа", ephemeral=True)
+                        return
 
-            if category is None:
-                await inter.response.send_message("Категория не найдена!")
-                return
+                    self.db.cursor.execute("SELECT category_id FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                    category_id = self.db.cursor.fetchone()[0]
 
-            self.db.cursor.execute("SELECT counter_tickets FROM settings WHERE guild_id = ?", (inter.guild.id,))
-            counter_tickets = self.db.cursor.fetchone()[0]
-            self.db.cursor.execute("UPDATE settings SET counter_tickets = ? WHERE guild_id = ?", (counter_tickets + 1, inter.guild.id))
-            self.db.conn.commit()
-            thread = await inter.channel.create_thread(name=f"ticket-{counter_tickets + 1}", type=disnake.ChannelType.private_thread)
-            await thread.edit(invitable=False)
-            thread_number = int(thread.name.split("-")[1])
-            self.db.cursor.execute("INSERT INTO created_tickets (thread_id, creator_username, creator_id, thread_number) VALUES (?, ?, ?, ?)", 
-                                (thread.id, inter.author.name, inter.author.id, thread_number))
-            self.db.conn.commit()
+                    category = inter.guild.get_channel(category_id)
 
-            ticket_embed = disnake.Embed(
-                title="Спасибо за обращение в клиенсткую поддержку",
-                description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
-                "▎Важные моменты:\n"
-                "- Не открывайте обращение, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
-                "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
-                "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
-                "**Несоблюдение этих правил может привести к наказанию**.",
-                color=embed_color
-            )
-            ticket_embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-            ticket_embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                    if category is None:
+                        await inter.response.send_message("Категория не найдена!")
+                        return
 
-            view = disnake.ui.View(timeout=None)
-            take_button = disnake.ui.Button(label="Взять обращение", emoji="📝", custom_id="take_ticket", style=disnake.ButtonStyle.primary)
-            close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
-            view.add_item(take_button)
-            view.add_item(close_button)
+                    self.db.cursor.execute("SELECT counter_tickets FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                    counter_tickets = self.db.cursor.fetchone()[0]
+                    self.db.cursor.execute("UPDATE settings SET counter_tickets = ? WHERE guild_id = ?", (counter_tickets + 1, inter.guild.id))
+                    self.db.conn.commit()
+                    thread = await inter.channel.create_thread(name=f"ticket-{counter_tickets + 1}", type=disnake.ChannelType.private_thread)
+                    await thread.edit(invitable=False)
+                    thread_number = int(thread.name.split("-")[1])
+                    self.db.cursor.execute("INSERT INTO created_tickets (thread_id, creator_username, creator_id, thread_number) VALUES (?, ?, ?, ?)", 
+                                        (thread.id, inter.author.name, inter.author.id, thread_number))
+                    self.db.conn.commit()
 
-            await thread.send(embed=ticket_embed, view=view)
-            await thread.add_user(inter.author)
-            
-            self.db.cursor.execute("SELECT primetime FROM settings WHERE guild_id = ?", (inter.guild.id,))
-            primetime = self.db.cursor.fetchone()[0]
+                    ticket_embed = disnake.Embed(
+                        title="Спасибо за обращение в клиенсткую поддержку",
+                        description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
+                        "▎Важные моменты:\n"
+                        "- Не открывайте обращение, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
+                        "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
+                        "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
+                        "**Несоблюдение этих правил может привести к наказанию**.",
+                        color=embed_color
+                    )
+                    ticket_embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                    ticket_embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
 
-            if primetime:
-                start_time, end_time = primetime.split(" - ")
-                start_hour, start_minute = map(int, start_time.split(":"))
-                end_hour, end_minute = map(int, end_time.split(":"))
+                    view = disnake.ui.View(timeout=None)
+                    take_button = disnake.ui.Button(label="Взять обращение", emoji="📝", custom_id="take_ticket", style=disnake.ButtonStyle.primary)
+                    close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
+                    view.add_item(take_button)
+                    view.add_item(close_button)
 
-                current_time = datetime.datetime.now()
-                current_hour = current_time.hour
-                current_minute = current_time.minute
+                    await thread.send(embed=ticket_embed, view=view)
+                    await thread.add_user(inter.author)
 
-                if not (start_hour <= current_hour < end_hour or (start_hour == current_hour and start_minute <= current_minute) or (end_hour == current_hour and current_minute < end_minute)):
-                    await thread.send(f"<@{inter.author.id}>, В данный момент нерабочее время, и время ответа может занять больше времени, чем обычно.\n Пожалуйста, оставайтесь на связи, и мы ответим вам, как только сможем.")
+                    info_embed = disnake.Embed(
+                        title="Краткая суть обращения:",
+                        description=description,
+                        color=0xF0C43F
+                    )
+                    await thread.send(embed=info_embed)
 
-            await inter.response.send_message(rf":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True) # type: ignore
-
+                    await inter.response.send_message(rf":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True) # type: ignore
+            await inter.response.send_modal(CreateTicketModal())
+        
         if inter.data.custom_id == "take_ticket":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -300,7 +314,7 @@ class Tickets(commands.Cog):
             taken_username = self.db.cursor.fetchone()
             if taken_username is None or taken_username[0] is None:
                 embed1 = disnake.Embed(
-                    description=f"Обращение был закрыт - {inter.user.mention}",
+                    description=f"Обращение было закрыто - {inter.user.mention}",
                     color=0xF0C43F,
                 )
                 embed2 = disnake.Embed(
@@ -324,7 +338,7 @@ class Tickets(commands.Cog):
                 self.db.conn.commit()
             user = inter.guild.get_member_named(taken_username)
             embed1 = disnake.Embed(
-                description=f"Обращение был закрыт - {inter.user.mention}",
+                description=f"Обращение было закрыто - {inter.user.mention}",
                 color=0xF0C43F,
             )
             embed2 = disnake.Embed(

@@ -69,6 +69,14 @@ class Settings(commands.Cog):
                 ),
                 disnake.ui.ActionRow(
                     disnake.ui.TextInput(
+                        label="Цена покупки админки",
+                        placeholder="1337",
+                        custom_id="price_input",
+                        style=disnake.TextInputStyle.short,
+                    )
+                ),
+                disnake.ui.ActionRow(
+                    disnake.ui.TextInput(
                         label="Дата покупки админки (дд.мм.гггг)",
                         placeholder="12.09.2024",
                         custom_id="date_input",
@@ -88,31 +96,18 @@ class Settings(commands.Cog):
         admin_level = inter.text_values['admin_level_input']
         date_str = inter.text_values['date_input']
         date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
+        price = int(inter.text_values['price_input'])
 
         current_date = datetime.date.today()
-        months_diff = (current_date.year - date.year) * 12 + current_date.month - date.month
+        months_diff = (current_date.year - date.year) * 12 + (current_date.month - date.month)
 
-        self.db.cursor.execute("SELECT * FROM price_list")
-        prices = self.db.cursor.fetchone()
-
-        if prices is None:
-            await inter.response.send_message("Цены не найдены", ephemeral=True)
-            return
-
-        if admin_level == "1lvl":
-            price = prices[5]
-        elif admin_level == "2lvl":
-            price = prices[6]
-        elif admin_level == "sponsor":
-            price = prices[7]
-
-        refund = price / 3
-        remaining_price = price - refund
+        guaranteed_refund = price / 3
+        remaining_price = price - guaranteed_refund
 
         if months_diff > 5:
-            refund = price / 3
+            refund = guaranteed_refund
         else:
-            refund += remaining_price * (1 - (months_diff * 20 / 100))
+            refund = guaranteed_refund + remaining_price * (1 - (months_diff * 0.2))
 
         await inter.response.send_message(f"Авто-подсчет возврата: {int(refund)} рублей", ephemeral=True)
 
@@ -462,34 +457,18 @@ class Settings(commands.Cog):
             admin_level = inter.text_values['admin_level_input']
             date_str = inter.text_values['date_input']
             date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
+            price = int(inter.text_values['price_input'])
 
             current_date = datetime.date.today()
-            months_diff = (current_date.year - date.year) * 12 + current_date.month - date.month
+            months_diff = (current_date.year - date.year) * 12 + (current_date.month - date.month)
 
-            self.db.cursor.execute("SELECT * FROM price_list")
-            prices = self.db.cursor.fetchone()
-
-            if prices is None:
-                await inter.response.send_message("Цены не найдены", ephemeral=True)
-                return
-
-            if admin_level == "admin_1lvl":
-                price = prices[5]
-            elif admin_level == "admin_2lvl":
-                price = prices[6]
-            elif admin_level == "sponsor":
-                price = prices[7]
-            else:
-                await inter.response.send_message("Неправильный уровень админки", ephemeral=True)
-                return
-
-            refund = price / 3
-            remaining_price = price - refund
+            guaranteed_refund = price / 3
+            remaining_price = price - guaranteed_refund
 
             if months_diff > 5:
-                refund = price / 3
+                refund = guaranteed_refund
             else:
-                refund += remaining_price * (1 - (months_diff * 20 / 100))
+                refund = guaranteed_refund + remaining_price * (1 - (months_diff * 0.2))
 
             await inter.response.send_message(f"Авто-подсчет возврата: {int(refund)} рублей", ephemeral=True)
         if inter.data.custom_id == "settings_modal":
