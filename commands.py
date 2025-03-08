@@ -1,4 +1,5 @@
 import disnake, datetime
+from math import ceil
 from disnake.ext import commands
 from database import Database
 
@@ -47,7 +48,177 @@ class Settings(commands.Cog):
 
         await inter.response.send_message("", view=view)
 
+    async def price_callback(self, inter):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+        if inter.data.values[0] == "докупка":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите тип",
+                custom_id="type_select",
+                options=[
+                    disnake.SelectOption(label="Админ", value="admin"),
+                    disnake.SelectOption(label="Вип", value="vip"),
+                    disnake.SelectOption(label="Назад", value="назад")
+                ]
+            )
+            select_menu.callback = self.type_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="", view=view)
+        elif inter.data.values[0] == "дополнительные услуги":
+            embed = disnake.Embed(title="Дополнительные услуги", color=self.embed_color)
+            embed.add_field(name="Перенос админ/вип привилегии", value="150р", inline=False)
+            embed.add_field(name="Размут на сайте", value="200р", inline=False)
+            embed.add_field(name="Разморозка прав для админов", value="350р", inline=False)
+            embed.add_field(name="Разморозка прав для спонсора", value="750р", inline=False)
+            await inter.response.edit_message(embed=embed)
+        elif inter.data.values[0] == "авто-подсчет возврата":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите пункт",
+                custom_id="admin_level_select",
+                options=[
+                    disnake.SelectOption(label="Админ 1 уровня", value="admin_1lvl"),
+                    disnake.SelectOption(label="Админ 2 уровня", value="admin_2lvl"),
+                    disnake.SelectOption(label="Спонсор", value="sponsor"),
+                ]
+            )
+            select_menu.callback = self.refund_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="", view=view)
+
+
+    async def type_callback(self, inter):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        if inter.data.values[0] == "назад":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите пункт",
+                custom_id="price_select",
+                options=[
+                    disnake.SelectOption(label="Докупка", value="докупка"),
+                    disnake.SelectOption(label="Дополнительные услуги", value="дополнительные услуги"),
+                    disnake.SelectOption(label="Авто-подсчет возврата", value="авто-подсчет возврата"),
+                ]
+            )
+            select_menu.callback = self.price_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="", view=view)
+        elif inter.data.values[0] == "admin":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите уровень",
+                custom_id="admin_level_select",
+                options=[
+                    disnake.SelectOption(label="1lvl", value="1lvl"),
+                    disnake.SelectOption(label="2lvl", value="2lvl"),
+                    disnake.SelectOption(label="Назад", value="назад")
+                ]
+            )
+            select_menu.callback = self.admin_level_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="", view=view)
+        elif inter.data.values[0] == "vip":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите уровень",
+                custom_id="vip_level_select",
+                options=[
+                    disnake.SelectOption(label="Medium", value="medium"),
+                    disnake.SelectOption(label="Platinum", value="platinum"),
+                    disnake.SelectOption(label="Crystal", value="crystal"),
+                    disnake.SelectOption(label="Назад", value="назад")
+                ]
+            )
+            select_menu.callback = self.vip_level_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="", view=view)
+
+    async def vip_level_callback(self, inter):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        if inter.data.values[0] == "назад":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите тип",
+                custom_id="type_select",
+                options=[
+                    disnake.SelectOption(label="Админ", value="admin"),
+                    disnake.SelectOption(label="Вип", value="vip"),
+                    disnake.SelectOption(label="Назад", value="назад")
+                ]
+            )
+            select_menu.callback = self.type_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="", view=view)
+        else:
+            self.db.cursor.execute("SELECT vip_medium_price, vip_platinum_price, vip_crystal_price, vip_crystalplus_price FROM price_list")
+            prices = self.db.cursor.fetchone()
+            if prices is None:
+                await inter.response.send_message("Цены не найдены!", ephemeral=True)
+                return
+            vip_medium_price = prices[0]
+            vip_platinum_price = prices[1]
+            vip_crystal_price = prices[2]
+            vip_crystalplus_price = prices[3]
+            embed = disnake.Embed(title="Докупка випа", color=self.embed_color)
+            if inter.data.values[0] == "medium":
+                embed.add_field(name="С Medium на Platinum", value=f"{vip_platinum_price - vip_medium_price}р", inline=False)
+                embed.add_field(name="С Medium на Crystal", value=f"{vip_crystal_price - vip_medium_price}р", inline=False)
+                embed.add_field(name="С Medium на Crystal+", value=f"{vip_crystalplus_price - vip_medium_price}р", inline=False)
+            elif inter.data.values[0] == "platinum":
+                embed.add_field(name="С Platinum на Crystal", value=f"{vip_crystal_price - vip_platinum_price}р", inline=False)
+                embed.add_field(name="С Platinum на Crystal+", value=f"{vip_crystalplus_price - vip_platinum_price}р", inline=False)
+            elif inter.data.values[0] == "crystal":
+                embed.add_field(name="С Crystal на Crystal+", value=f"{vip_crystalplus_price - vip_crystal_price}р", inline=False)
+            await inter.response.edit_message(embed=embed)
+
     async def admin_level_callback(self, inter):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        if inter.data.values[0] == "назад":
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите тип",
+                custom_id="type_select",
+                options=[
+                    disnake.SelectOption(label="Админ", value="admin"),
+                    disnake.SelectOption(label="Вип", value="vip"),
+                    disnake.SelectOption(label="Назад", value="назад")
+                ]
+            )
+            select_menu.callback = self.type_callback
+            view.add_item(select_menu)
+            await inter.response.edit_message(content="", view=view)
+        else:
+            self.db.cursor.execute("SELECT admin_1lvl_price, admin_2lvl_price, sponsor_price FROM price_list")
+            prices = self.db.cursor.fetchone()
+            if prices is None:
+                await inter.response.send_message("Цены не найдены!", ephemeral=True)
+                return
+            admin_1lvl_price = prices[0]
+            admin_2lvl_price = prices[1]
+            sponsor_price = prices[2]
+            embed = disnake.Embed(title="Докупка админки", color=self.embed_color)
+            if inter.data.values[0] == "1lvl":
+                price_diff_2lvl = admin_2lvl_price - admin_1lvl_price
+                price_diff_sponsor = sponsor_price - admin_1lvl_price
+                embed.add_field(name="С 1lvl на 2lvl", value=f"{price_diff_2lvl}р", inline=False)
+                embed.add_field(name="С 1lvl на Sponsor", value=f"{price_diff_sponsor}р", inline=False)
+            elif inter.data.values[0] == "2lvl":
+                price_diff_sponsor = sponsor_price - admin_2lvl_price
+                embed.add_field(name="С 2lvl на Sponsor", value=f"{price_diff_sponsor}р", inline=False)
+            await inter.response.edit_message(embed=embed)
+
+    async def refund_callback(self, inter):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
@@ -110,92 +281,7 @@ class Settings(commands.Cog):
             refund = guaranteed_refund + remaining_price * (1 - (months_diff * 0.2))
 
         await inter.response.send_message(f"Авто-подсчет возврата: {int(refund)} рублей", ephemeral=True)
-
-    async def price_callback(self, inter):
-        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-
-        if inter.data.values[0] == "докупка":
-            view = disnake.ui.View()
-            select_menu = disnake.ui.Select(
-                placeholder="Выберите привилегию",
-                custom_id="privilege_select",
-                options=[
-                    disnake.SelectOption(label="Medium VIP", value="medium_vip"),
-                    disnake.SelectOption(label="Platinum VIP", value="platinum_vip"),
-                    disnake.SelectOption(label="Crystal VIP", value="crystal_vip"),
-                    disnake.SelectOption(label="Crystal+ VIP", value="crystal_plus_vip"),
-                    disnake.SelectOption(label="Назад", value="назад")
-                ]
-            )
-            select_menu.callback = self.privilege_callback
-            view.add_item(select_menu)
-            await inter.response.edit_message(content="", view=view)
-        elif inter.data.values[0] == "дополнительные услуги":
-            embed = disnake.Embed(title="Дополнительные услуги", color=self.embed_color)
-            embed.add_field(name="Перенос админ/вип привилегии", value="150р", inline=False)
-            embed.add_field(name="Размут на сайте", value="200р", inline=False)
-            embed.add_field(name="Разморозка прав для админов", value="350р", inline=False)
-            embed.add_field(name="Разморозка прав для спонсора", value="750р", inline=False)
-
-            await inter.response.edit_message(embed=embed)
-        elif inter.data.values[0] == "авто-подсчет возврата":
-            view = disnake.ui.View()
-            select_menu = disnake.ui.Select(
-                placeholder="Выберите пункт",
-                custom_id="admin_level_select",
-                options=[
-                    disnake.SelectOption(label="Админ 1 уровня", value="admin_1lvl"),
-                    disnake.SelectOption(label="Админ 2 уровня", value="admin_2lvl"),
-                    disnake.SelectOption(label="Спонсор", value="sponsor"),
-                ]
-            )
-            select_menu.callback = self.admin_level_callback
-            view.add_item(select_menu)
-            await inter.response.edit_message(content="", view=view)
-
-    async def privilege_callback(self, inter):
-        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-        if inter.data.values[0] == "назад":
-            view = disnake.ui.View()
-            select_menu = disnake.ui.Select(
-                placeholder="Выберите пункт",
-                custom_id="price_select",
-                options=[
-                    disnake.SelectOption(label="Докупка", value="докупка"),
-                    disnake.SelectOption(label="Дополнительные услуги", value="дополнительные услуги")
-                ]
-            )
-            select_menu.callback = self.price_callback
-            view.add_item(select_menu)
-            await inter.response.edit_message(content="", view=view)
-        else:
-            self.db.cursor.execute("SELECT vip_medium_price, vip_platinum_price, vip_crystal_price, vip_crystalplus_price FROM price_list")
-            prices = self.db.cursor.fetchone()
-
-            if prices is None:
-                await inter.response.edit_message(content="Цены не найдены")
-                return
-
-            embed = disnake.Embed(title="Докупка", color=self.embed_color)
-
-            if inter.data.values[0] == "medium_vip":
-                embed.add_field(name="С Medium VIP на Platinum VIP", value=f"{prices[1] - prices[0]}р", inline=False)
-                embed.add_field(name="С Medium VIP на Crystal VIP", value=f"{prices[2] - prices[0]}р", inline=False)
-                embed.add_field(name="С Medium VIP на Crystal+ VIP", value=f"{prices[3] - prices[0]}р", inline=False)
-            elif inter.data.values[0] == "platinum_vip":
-                embed.add_field(name="С Platinum VIP на Crystal VIP", value=f"{prices[2] - prices[1]}р", inline=False)
-                embed.add_field(name="С Platinum VIP на Crystal+ VIP", value=f"{prices[3] - prices[1]}р", inline=False)
-            elif inter.data.values[0] == "crystal_vip":
-                embed.add_field(name="С Crystal VIP на Crystal+ VIP", value=f"{prices[3] - prices[2]}р", inline=False)
-            elif inter.data.values[0] == "crystal_plus_vip":
-                await inter.response.edit_message(content="Вы уже имеете максимальную привилегию")
-                return
-
-            await inter.response.edit_message(embed=embed)
+    
 
     @commands.slash_command(description="[DEV] - Просмотр статистики по датам")
     async def date_stats(self, inter):
@@ -270,7 +356,7 @@ class Settings(commands.Cog):
 
         embed = disnake.Embed(
             title="Статистика сотрудников",
-            description=f"Открыта страница: {self.page} из {len(staff_members) // 5 + 1}",
+            description=f"Открыта страница: {self.page} из {ceil(len(staff_members) / 5)}",
             color=self.embed_color
         )
 
@@ -321,20 +407,21 @@ class Settings(commands.Cog):
                 start = (self.page - 1) * 5
                 end = self.page * 5
 
-                for i, staff_member in enumerate(staff_members[start:end]):
+                for i, staff_member in enumerate(staff_members[start:end], start=1):
                     username = staff_member[1]
                     shortname = staff_member[2]
                     role = staff_member[4]
                     closed_tickets = staff_member[5]
 
                     embed.add_field(
-                        name=f"{i+1}. {username}",
+                        name=f"{(self.page - 1) * 5 + i}. {username}",
                         value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: **Секрет**",
                         inline=False
                     )
 
                 await inter.message.edit(embed=embed)
                 await inter.response.send_message("Страница обновлена", ephemeral=True)
+
         elif inter.data.custom_id == "right":
             if not self.check_staff_permissions(inter, "dev"):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -353,14 +440,14 @@ class Settings(commands.Cog):
             start = (self.page - 1) * 5
             end = self.page * 5
 
-            for i, staff_member in enumerate(staff_members[start:end]):
+            for i, staff_member in enumerate(staff_members[start:end], start=1):
                 username = staff_member[1]
                 shortname = staff_member[2]
                 role = staff_member[4]
                 closed_tickets = staff_member[5]
 
                 embed.add_field(
-                    name=f"{i+1}. {username}",
+                    name=f"{(self.page - 1) * 5 + i}. {username}",
                     value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: **Секрет**",
                     inline=False
                 )

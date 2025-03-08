@@ -33,6 +33,35 @@ class Tickets(commands.Cog):
                 self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (user_id,))
                 self.db.conn.commit()
 
+    @commands.slash_command(description="[DEV] - Изменить количество закрытых тикетов сотрудника")
+    async def sum(self, inter, username: str, value: str):
+        if not self.check_staff_permissions(inter, "dev"):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        self.db.cursor.execute("SELECT * FROM staff_list WHERE username = ?", (username,))
+        staff_member = self.db.cursor.fetchone()
+
+        if staff_member is None:
+            await inter.response.send_message("Сотрудник не найден!", ephemeral=True)
+            return
+
+        try:
+            value = int(value)
+        except ValueError:
+            await inter.response.send_message("Неправильный формат значения", ephemeral=True)
+            return
+
+        if value < 0:
+            await inter.response.send_message("Значение не может быть отрицательным", ephemeral=True)
+            return
+
+        new_value = staff_member[5] + value
+        self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (new_value, username))
+        self.db.conn.commit()
+
+        await inter.response.send_message(f"Количество закрытых тикетов сотрудника {username} изменено на {new_value}", ephemeral=True)
+
     @commands.slash_command(description="[DEV] - Разрешить создавать обращение пользователю")
     async def ticketunban(self, inter, user_id: str):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
@@ -90,7 +119,7 @@ class Tickets(commands.Cog):
         settings = self.db.cursor.fetchone()
 
         if settings is None:
-            await inter.response.send_message("Настройки не найдены!")
+            await inter.response.send_message("Настройки не найдены!", ephemeral=True)
             return
 
         embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
@@ -141,7 +170,7 @@ class Tickets(commands.Cog):
         settings = self.db.cursor.fetchone()
 
         if settings is None:
-            await inter.response.send_message("Настройки не найдены!")
+            await inter.response.send_message("Настройки не найдены!", ephemeral=True)
             return
 
         embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
@@ -158,7 +187,7 @@ class Tickets(commands.Cog):
                     await inter.response.send_message("✅ / Ваш бан спал. Теперь вы можете создавать обращение.", ephemeral=True)
                     return
                 else:
-                    await inter.response.send_message(f"🚫 / Вам запрещено создавать ы до {ban_until.strftime('%d.%m.%Y %H:%M')}.", ephemeral=True)
+                    await inter.response.send_message(f"🚫 / Вам запрещено создавать обращение до {ban_until.strftime('%d.%m.%Y %H:%M')}.", ephemeral=True)
                     return
             else:
                 pass
@@ -435,12 +464,12 @@ class Tickets(commands.Cog):
 
                 async def callback(self, inter):
                     embed1 = disnake.Embed(
-                        description=f"Обращение был закрыт - {inter.user.mention}",
-                        color=embed_color
+                        description=f"Обращение было закрыто - {inter.user.mention}",
+                        color=0xF0C43F
                     )
                     embed2 = disnake.Embed(
-                        description=f"Обращение будет удален через несколько секунд",
-                        color=embed_color
+                        description=f"Обращение будет удалено через несколько секунд",
+                        color=0xF0C43F
                     )
                     await inter.response.send_message(embeds=[embed1, embed2])
                     reason = inter.text_values['reason_input']
