@@ -582,13 +582,13 @@ class Settings(commands.Cog):
 
             if existing_settings is not None:
                 self.db.cursor.execute("""
-                    UPDATE settings SET embed_color = ?, category_id = ?, ticket_channel_id = ?, primetime = ?
-                    WHERE guild_id = ?
-                """, (color, category_id, channel_id, primetime, inter.guild.id))
+                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (inter.guild.id, color, category_id, channel_id, primetime))
             else:
-                self.db.cursor.execute(""" 
-                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime = ?)
-                    VALUES (?, ?, ?, ?)
+                self.db.cursor.execute("""
+                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
+                    VALUES (?, ?, ?, ?, ?)
                 """, (inter.guild.id, color, category_id, channel_id, primetime))
 
             self.db.conn.commit()

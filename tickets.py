@@ -6,6 +6,7 @@ class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = Database("database.db")
+        self.lock = asyncio.Lock()
     
     @staticmethod
     def check_staff_permissions(inter, required_role):
@@ -232,7 +233,8 @@ class Tickets(commands.Cog):
                     self.db.cursor.execute("UPDATE settings SET counter_tickets = ? WHERE guild_id = ?", (counter_tickets + 1, inter.guild.id))
                     self.db.conn.commit()
                     thread = await inter.channel.create_thread(name=f"ticket-{counter_tickets + 1}", type=disnake.ChannelType.private_thread)
-                    await thread.edit(invitable=False)
+                    await thread.edit(invitable=False, auto_archive_duration=disnake.ThreadArchiveDuration.week)
+
                     thread_number = int(thread.name.split("-")[1])
                     self.db.cursor.execute("INSERT INTO created_tickets (thread_id, creator_username, creator_id, thread_number) VALUES (?, ?, ?, ?)", 
                                         (thread.id, inter.author.name, inter.author.id, thread_number))
@@ -271,56 +273,57 @@ class Tickets(commands.Cog):
             await inter.response.send_modal(CreateTicketModal())
         
         if inter.data.custom_id == "take_ticket":
-            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-                return
+            async with self.lock:
+                if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                    await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                    return
 
-            ticket_embed = disnake.Embed(
-                title="Спасибо за обращение в клиенсткую поддержку",
-                description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
-                "▎Важные моменты:\n"
-                "- Не открывайте обращение, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
-                "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
-                "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
-                "**Несоблюдение этих правил может привести к наказанию**.",
-                color=embed_color
-            )
-            ticket_embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-            ticket_embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-            ticket_embed.add_field(name=f"", value=f"🔍 Взял обращение - {inter.author.mention}", inline=False)
+                ticket_embed = disnake.Embed(
+                    title="Спасибо за обращение в клиенсткую поддержку",
+                    description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
+                    "▎Важные моменты:\n"
+                    "- Не открывайте обращение, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
+                    "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
+                    "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
+                    "**Несоблюдение этих правил может привести к наказанию**.",
+                    color=embed_color
+                )
+                ticket_embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                ticket_embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                ticket_embed.add_field(name=f"", value=f"🔍 Взял обращение - {inter.author.mention}", inline=False)
 
-            view = disnake.ui.View(timeout=None)
-            close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
-            transfer_button = disnake.ui.Button(label="Передать обращение", emoji="📝", custom_id="transfer_ticket", style=disnake.ButtonStyle.primary)
-            view.add_item(close_button)
-            view.add_item(transfer_button)
+                view = disnake.ui.View(timeout=None)
+                close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
+                transfer_button = disnake.ui.Button(label="Передать обращение", emoji="📝", custom_id="transfer_ticket", style=disnake.ButtonStyle.primary)
+                view.add_item(close_button)
+                view.add_item(transfer_button)
 
-            await inter.message.edit(embed=ticket_embed, view=view)
+                await inter.message.edit(embed=ticket_embed, view=view)
 
-            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            taken_ticket = self.db.cursor.fetchone()
-            if taken_ticket is not None and taken_ticket[0] is not None:
-                await inter.response.send_message("Этот обращение уже взят!", ephemeral=True)
-                return
+                self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                taken_ticket = self.db.cursor.fetchone()
+                if taken_ticket is not None and taken_ticket[0] is not None:
+                    await inter.response.send_message("Этот обращение уже взят!", ephemeral=True)
+                    return
 
-            self.db.cursor.execute("SELECT creator_username, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            creator_username, thread_number = self.db.cursor.fetchone()
-            
-            embed = disnake.Embed(title="", description=f"Успешно взялся за обращение - {inter.author.mention}", color=0xF0C43F,)
-            await inter.response.send_message(embed=embed)
+                self.db.cursor.execute("SELECT creator_username, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                creator_username, thread_number = self.db.cursor.fetchone()
+                
+                embed = disnake.Embed(title="", description=f"Успешно взялся за обращение - {inter.author.mention}", color=0xF0C43F,)
+                await inter.response.send_message(embed=embed)
 
-            self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", 
-                                (inter.author.name, inter.channel.id))
-            self.db.conn.commit()
+                self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", 
+                                    (inter.author.name, inter.channel.id))
+                self.db.conn.commit()
 
-            self.db.cursor.execute("SELECT ticket_name FROM staff_list WHERE username = ?", (inter.author.name,))
-            ticket_name = self.db.cursor.fetchone()
-            if ticket_name is not None:
-                ticket_name = ticket_name[0]
-            else:
-                ticket_name = taken_username
-            new_name = f"{ticket_name}-ticket-{thread_number}"
-            await inter.channel.edit(name=new_name)
+                self.db.cursor.execute("SELECT ticket_name FROM staff_list WHERE username = ?", (inter.author.name,))
+                ticket_name = self.db.cursor.fetchone()
+                if ticket_name is not None:
+                    ticket_name = ticket_name[0]
+                else:
+                    ticket_name = taken_username
+                new_name = f"{ticket_name}-ticket-{thread_number}"
+                await inter.channel.edit(name=new_name)
         
         if inter.data.custom_id == "close_ticket":
             confirmation_embed = disnake.Embed(
@@ -339,9 +342,34 @@ class Tickets(commands.Cog):
             await inter.response.send_message(embed=confirmation_embed, view=view, ephemeral=True)
         
         if inter.data.custom_id == "confirm_close_ticket":
-            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            taken_username = self.db.cursor.fetchone()
-            if taken_username is None or taken_username[0] is None:
+            async with self.lock:
+                self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                taken_username = self.db.cursor.fetchone()
+                if taken_username is None or taken_username[0] is None:
+                    embed1 = disnake.Embed(
+                        description=f"Обращение было закрыто - {inter.user.mention}",
+                        color=0xF0C43F,
+                    )
+                    embed2 = disnake.Embed(
+                        description=f"Обращение будет удален через несколько секунд",
+                        color=0xF0C43F,
+                    )
+                    await inter.response.defer()
+                    await inter.channel.send(embed=embed1)
+                    await inter.channel.send(embed=embed2)
+                    self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                    self.db.conn.commit()
+                    await asyncio.sleep(5)
+                    await inter.channel.delete()
+                    return
+                taken_username = taken_username[0]
+                self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
+                closed_tickets = self.db.cursor.fetchone()
+                if closed_tickets is not None:
+                    closed_tickets = closed_tickets[0]
+                    self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, taken_username))
+                    self.db.conn.commit()
+                user = inter.guild.get_member_named(taken_username)
                 embed1 = disnake.Embed(
                     description=f"Обращение было закрыто - {inter.user.mention}",
                     color=0xF0C43F,
@@ -353,150 +381,127 @@ class Tickets(commands.Cog):
                 await inter.response.defer()
                 await inter.channel.send(embed=embed1)
                 await inter.channel.send(embed=embed2)
+                self.db.cursor.execute("SELECT creator_id, creator_username, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                creator_id, creator_username, thread_number = self.db.cursor.fetchone()
+                creator = await self.bot.fetch_user(creator_id)
+                if creator is not None:
+                    date_str = datetime.date.today().strftime("%d.%m.%Y")
+                    embed = disnake.Embed(title="Ваш обращение было закрыт",timestamp=datetime.datetime.now(),color=embed_color)
+                    embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
+                    embed.add_field(name=":unlock: Открыл", value=creator.name, inline=True)
+                    embed.add_field(name=":lock: Закрыл", value=inter.author.name, inline=True)
+                    embed.add_field(name="", value="", inline=False)
+                    staff_member = self.db.cursor.execute("SELECT username FROM staff_list WHERE username = ?", (inter.author.name,)).fetchone()
+                    if staff_member is not None:
+                        embed.add_field(name=":mag_right: Взял обращение", value=f"<@{inter.author.id}>", inline=True)
+                    #embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
+                    embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                    await creator.send(embed=embed)
+                self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
+                closed_tickets = self.db.cursor.fetchone()[0]
+                self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, taken_username))
+                self.db.conn.commit()
+                date = datetime.date.today()
+                self.db.cursor.execute(""" 
+                    SELECT * FROM date_stats
+                    WHERE username = ? AND date = ?
+                """, (taken_username, date.strftime("%d.%m.%Y")))
+                existing_stat = self.db.cursor.fetchone()
+                if existing_stat is None:
+                    self.db.cursor.execute(""" 
+                        INSERT INTO date_stats (username, date, closed_tickets)
+                        VALUES (?, ?, 1)
+                    """, (taken_username, date.strftime("%d.%m.%Y")))
+                else:
+                    self.db.cursor.execute(""" 
+                        UPDATE date_stats SET closed_tickets = ?
+                        WHERE username = ? AND date = ?
+                    """, (existing_stat[3] + 1, taken_username, date.strftime("%d.%m.%Y")))
+                self.db.conn.commit()
                 self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                 self.db.conn.commit()
                 await asyncio.sleep(5)
                 await inter.channel.delete()
-                return
-            taken_username = taken_username[0]
-            self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
-            closed_tickets = self.db.cursor.fetchone()
-            if closed_tickets is not None:
-                closed_tickets = closed_tickets[0]
-                self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, taken_username))
-                self.db.conn.commit()
-            user = inter.guild.get_member_named(taken_username)
-            embed1 = disnake.Embed(
-                description=f"Обращение было закрыто - {inter.user.mention}",
-                color=0xF0C43F,
-            )
-            embed2 = disnake.Embed(
-                description=f"Обращение будет удален через несколько секунд",
-                color=0xF0C43F,
-            )
-            await inter.response.defer()
-            await inter.channel.send(embed=embed1)
-            await inter.channel.send(embed=embed2)
-            self.db.cursor.execute("SELECT creator_id, creator_username, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            creator_id, creator_username, thread_number = self.db.cursor.fetchone()
-            creator = await self.bot.fetch_user(creator_id)
-            if creator is not None:
-                date_str = datetime.date.today().strftime("%d.%m.%Y")
-                embed = disnake.Embed(title="Ваш обращение было закрыт",timestamp=datetime.datetime.now(),color=embed_color)
-                embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
-                embed.add_field(name=":unlock: Открыл", value=creator.name, inline=True)
-                embed.add_field(name=":lock: Закрыл", value=inter.author.name, inline=True)
-                embed.add_field(name="", value="", inline=False)
-                staff_member = self.db.cursor.execute("SELECT username FROM staff_list WHERE username = ?", (inter.author.name,)).fetchone()
-                if staff_member is not None:
-                    embed.add_field(name=":mag_right: Взял обращение", value=f"<@{inter.author.id}>", inline=True)
-                #embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
-                embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                await creator.send(embed=embed)
-            self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
-            closed_tickets = self.db.cursor.fetchone()[0]
-            self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, taken_username))
-            self.db.conn.commit()
-            date = datetime.date.today()
-            self.db.cursor.execute(""" 
-                SELECT * FROM date_stats
-                WHERE username = ? AND date = ?
-            """, (taken_username, date.strftime("%d.%m.%Y")))
-            existing_stat = self.db.cursor.fetchone()
-            if existing_stat is None:
-                self.db.cursor.execute(""" 
-                    INSERT INTO date_stats (username, date, closed_tickets)
-                    VALUES (?, ?, 1)
-                """, (taken_username, date.strftime("%d.%m.%Y")))
-            else:
-                self.db.cursor.execute(""" 
-                    UPDATE date_stats SET closed_tickets = ?
-                    WHERE username = ? AND date = ?
-                """, (existing_stat[3] + 1, taken_username, date.strftime("%d.%m.%Y")))
-            self.db.conn.commit()
-            self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            self.db.conn.commit()
-            await asyncio.sleep(5)
-            await inter.channel.delete()
         
         if inter.data.custom_id == "confirm_close_with_reason_ticket":
-            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-                return
-            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-            taken_username = self.db.cursor.fetchone()[0]
-            self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
-            closed_tickets = self.db.cursor.fetchone()[0]
-            self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, taken_username))
-            self.db.conn.commit()
-            date = datetime.date.today()
-            self.db.cursor.execute(""" 
-                SELECT * FROM date_stats
-                WHERE username = ? AND date = ?
-            """, (taken_username, date.strftime("%d.%m.%Y")))
-            existing_stat = self.db.cursor.fetchone()
-            if existing_stat is None:
+            async with self.lock:
+                if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                    await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                    return
+                self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                taken_username = self.db.cursor.fetchone()[0]
+                self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (taken_username,))
+                closed_tickets = self.db.cursor.fetchone()[0]
+                self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, taken_username))
+                self.db.conn.commit()
+                date = datetime.date.today()
                 self.db.cursor.execute(""" 
-                    INSERT INTO date_stats (username, date, closed_tickets)
-                    VALUES (?, ?, 1)
-                """, (taken_username, date.strftime("%d.%m.%Y")))
-            else:
-                self.db.cursor.execute(""" 
-                    UPDATE date_stats SET closed_tickets = ?
+                    SELECT * FROM date_stats
                     WHERE username = ? AND date = ?
-                """, (existing_stat[3] + 1, taken_username, date.strftime("%d.%m.%Y")))
-            self.db.conn.commit()
-            class CloseTicketModal(disnake.ui.Modal):
-                def __init__(self, taken_username, bot):
-                    self.taken_username = taken_username
-                    self.bot = bot
-                    self.db = Database("database.db")
-                    super().__init__(title="Причина закрытия обращения", components=[
-                        disnake.ui.ActionRow(
-                            disnake.ui.TextInput(
-                                label="Причина",
-                                placeholder="Введите причину закрытия обращения",
-                                style=disnake.TextInputStyle.short,
-                                custom_id="reason_input"
+                """, (taken_username, date.strftime("%d.%m.%Y")))
+                existing_stat = self.db.cursor.fetchone()
+                if existing_stat is None:
+                    self.db.cursor.execute(""" 
+                        INSERT INTO date_stats (username, date, closed_tickets)
+                        VALUES (?, ?, 1)
+                    """, (taken_username, date.strftime("%d.%m.%Y")))
+                else:
+                    self.db.cursor.execute(""" 
+                        UPDATE date_stats SET closed_tickets = ?
+                        WHERE username = ? AND date = ?
+                    """, (existing_stat[3] + 1, taken_username, date.strftime("%d.%m.%Y")))
+                self.db.conn.commit()
+                class CloseTicketModal(disnake.ui.Modal):
+                    def __init__(self, taken_username, bot):
+                        self.taken_username = taken_username
+                        self.bot = bot
+                        self.db = Database("database.db")
+                        super().__init__(title="Причина закрытия обращения", components=[
+                            disnake.ui.ActionRow(
+                                disnake.ui.TextInput(
+                                    label="Причина",
+                                    placeholder="Введите причину закрытия обращения",
+                                    style=disnake.TextInputStyle.short,
+                                    custom_id="reason_input"
+                                )
                             )
+                        ])
+
+                    async def callback(self, inter):
+                        embed1 = disnake.Embed(
+                            description=f"Обращение было закрыто - {inter.user.mention}",
+                            color=0xF0C43F
                         )
-                    ])
+                        embed2 = disnake.Embed(
+                            description=f"Обращение будет удалено через несколько секунд",
+                            color=0xF0C43F
+                        )
+                        await inter.response.send_message(embeds=[embed1, embed2])
+                        reason = inter.text_values['reason_input']
+                        self.db.cursor.execute("SELECT creator_id, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                        creator_id, thread_number = self.db.cursor.fetchone()
+                        creator = await self.bot.fetch_user(creator_id)
+                        if creator is not None:
+                            date_str = datetime.date.today().strftime("%d.%m.%Y")
+                            embed = disnake.Embed(title="Ваш обращение было закрыто",timestamp=datetime.datetime.now(),color=embed_color)
+                            embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
+                            embed.add_field(name=":unlock: Открыл", value=creator.name, inline=True)
+                            embed.add_field(name=":lock: Закрыл", value=inter.author.name, inline=True)
+                            embed.add_field(name="", value="", inline=False)
+                            staff_member = self.db.cursor.execute("SELECT username FROM staff_list WHERE username = ?", (inter.author.name,)).fetchone()
+                            if staff_member is not None:
+                                embed.add_field(name=":mag_right: Взял обращение", value=f"<@{inter.author.id}>", inline=True)
+                            embed.add_field(name=":pencil: Сообщение", value=reason, inline=False)
+                            #embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
+                            embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                            await creator.send(embed=embed)
 
-                async def callback(self, inter):
-                    embed1 = disnake.Embed(
-                        description=f"Обращение было закрыто - {inter.user.mention}",
-                        color=0xF0C43F
-                    )
-                    embed2 = disnake.Embed(
-                        description=f"Обращение будет удалено через несколько секунд",
-                        color=0xF0C43F
-                    )
-                    await inter.response.send_message(embeds=[embed1, embed2])
-                    reason = inter.text_values['reason_input']
-                    self.db.cursor.execute("SELECT creator_id, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                    creator_id, thread_number = self.db.cursor.fetchone()
-                    creator = await self.bot.fetch_user(creator_id)
-                    if creator is not None:
-                        date_str = datetime.date.today().strftime("%d.%m.%Y")
-                        embed = disnake.Embed(title="Ваш обращение было закрыто",timestamp=datetime.datetime.now(),color=embed_color)
-                        embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
-                        embed.add_field(name=":unlock: Открыл", value=creator.name, inline=True)
-                        embed.add_field(name=":lock: Закрыл", value=inter.author.name, inline=True)
-                        embed.add_field(name="", value="", inline=False)
-                        staff_member = self.db.cursor.execute("SELECT username FROM staff_list WHERE username = ?", (inter.author.name,)).fetchone()
-                        if staff_member is not None:
-                            embed.add_field(name=":mag_right: Взял обращение", value=f"<@{inter.author.id}>", inline=True)
-                        embed.add_field(name=":pencil: Сообщение", value=reason, inline=False)
-                        #embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
-                        embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                        await creator.send(embed=embed)
+                        self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                        self.db.conn.commit()
+                        await asyncio.sleep(5)
+                        await inter.channel.delete()
 
-                    self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                    self.db.conn.commit()
-                    await asyncio.sleep(5)
-                    await inter.channel.delete()
-
-            await inter.response.send_modal(CloseTicketModal(taken_username, self.bot))
+                await inter.response.send_modal(CloseTicketModal(taken_username, self.bot))
 
         if inter.data.custom_id == "transfer_ticket":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
