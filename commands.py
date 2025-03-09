@@ -533,6 +533,14 @@ class Settings(commands.Cog):
                         style=disnake.TextInputStyle.short,
                     )
                 ),
+                disnake.ui.ActionRow(
+                    disnake.ui.TextInput(
+                        label="Айди ролей",
+                        placeholder="1274758836552728576, 1273961566961799260",
+                        custom_id="role_ids",
+                        style=disnake.TextInputStyle.short,
+                    )
+                ),
             ],
         )
 
@@ -563,6 +571,8 @@ class Settings(commands.Cog):
             category_id = int(inter.text_values['category_id'])
             channel_id = int(inter.text_values['channel_id'])
             primetime = str(inter.text_values['primetime'])
+            role_ids = str(inter.text_values['role_ids'])
+
 
             category = inter.guild.get_channel(category_id)
             channel = inter.guild.get_channel(channel_id)
@@ -582,14 +592,14 @@ class Settings(commands.Cog):
 
             if existing_settings is not None:
                 self.db.cursor.execute("""
-                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (inter.guild.id, color, category_id, channel_id, primetime))
+                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime, role_ids)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (inter.guild.id, color, category_id, channel_id, primetime, role_ids))
             else:
                 self.db.cursor.execute("""
-                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (inter.guild.id, color, category_id, channel_id, primetime))
+                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime, role_ids)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (inter.guild.id, color, category_id, channel_id, primetime, role_ids))
 
             self.db.conn.commit()
 
