@@ -270,17 +270,16 @@ class Settings(commands.Cog):
         price = int(inter.text_values['price_input'])
 
         current_date = datetime.date.today()
-        months_diff = (current_date.year - date.year) * 12 + (current_date.month - date.month)
+        days_diff = (current_date - date).days
+        percent_diff = days_diff * 0.7
 
         guaranteed_refund = price / 3
         remaining_price = price - guaranteed_refund
+        refund = remaining_price - (remaining_price * percent_diff / 100)
 
-        if months_diff > 5:
-            refund = guaranteed_refund
-        else:
-            refund = guaranteed_refund + remaining_price * (1 - (months_diff * 0.2))
+        final_refund = refund + guaranteed_refund
 
-        await inter.response.send_message(f"Авто-подсчет возврата: {int(refund)} рублей", ephemeral=True)
+        await inter.response.send_message(f"Авто-подсчет возврата: {int(final_refund)} рублей", ephemeral=True)
     
 
     @commands.slash_command(description="[DEV] - Просмотр статистики по датам")
