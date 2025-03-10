@@ -11,7 +11,7 @@ class Settings(commands.Cog):
         self.db = Database("database.db")
         self.page = 1
         self.stats_message = None
-        self.embed_color = None
+        self.embed_color = disnake.Colour.from_rgb(119, 137, 253)
     
     @staticmethod
     def check_staff_permissions(inter, required_role):
@@ -27,7 +27,23 @@ class Settings(commands.Cog):
         
         return True
 
-    @commands.slash_command(description="[DEV] - Установить статус сервера")
+    @commands.slash_command(description="[STAFF] - Показать доступные быстрые команды")
+    async def fastcommands(self, inter):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        self.db.cursor.execute("SELECT command_name, description FROM fast_commands")
+        fast_commands = self.db.cursor.fetchall()
+
+        embed = disnake.Embed(title="Доступные быстрые команды", color=self.embed_color)
+
+        for command in fast_commands:
+            embed.add_field(name=f".{command[0]}", value=command[1], inline=False)
+
+        await inter.response.send_message(embed=embed)
+
+    @commands.slash_command(description="[DEV] - Установить статус тех.работ тикетов")
     async def status(self, inter, value: int):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
