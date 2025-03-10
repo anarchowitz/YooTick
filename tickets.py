@@ -53,11 +53,10 @@ class Tickets(commands.Cog):
             await inter.response.send_message("Неправильный формат значения", ephemeral=True)
             return
 
-        if value < 0:
-            await inter.response.send_message("Значение не может быть отрицательным", ephemeral=True)
-            return
-
         new_value = staff_member[5] + value
+        if new_value < 0:
+            new_value = 0
+
         self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (new_value, username))
         self.db.conn.commit()
 
@@ -259,8 +258,11 @@ class Tickets(commands.Cog):
                         user_id = result[1]
                         ping_message += f"<@{user_id}> "
 
-                    ping_message = await thread.send(ping_message)
-                    await ping_message.delete()
+                    if ping_message: 
+                        mention = await thread.send(ping_message)
+                        await mention.delete()
+                    else:
+                        pass
 
                     await thread.send(inter.user.mention, embed=ticket_embed, view=view)
                     
@@ -349,7 +351,7 @@ class Tickets(commands.Cog):
         if inter.data.custom_id == "confirm_close_ticket":
             async with self.lock:
                 self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                taken_username = self.db.cursor.fetchone()
+                taken_username = self.db.cursor.fetchone()[0]
                 if taken_username is None:
                     embed1 = disnake.Embed(
                         description=f"Обращение было закрыто - {inter.user.mention}",

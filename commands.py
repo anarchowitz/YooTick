@@ -380,6 +380,7 @@ class Settings(commands.Cog):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
+        self.page = 1
         if inter.guild is not None:
             self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
         else:
@@ -388,28 +389,27 @@ class Settings(commands.Cog):
         if settings is not None:
             self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
 
-        self.db.cursor.execute("SELECT * FROM staff_list WHERE user_id = ?", (inter.author.id,))
+        self.db.cursor.execute("SELECT * FROM staff_list")
         staff_members = self.db.cursor.fetchall()
             
         staff_members.sort(key=lambda x: x[5], reverse=True)
 
         embed = disnake.Embed(
             title="Статистика сотрудников",
-            description=f"Открыта страница: {self.page} из {ceil(len(staff_members) / 5)}",
+            description=f"Открыта страница: {self.page} из {len(staff_members) // 5 + 1}",
             color=self.embed_color
         )
 
         start = (self.page - 1) * 5
         end = self.page * 5
 
-        for i, staff_member in enumerate(staff_members[start:end]):
+        for i, staff_member in enumerate(staff_members[start:end], start=1):
             username = staff_member[1]
             shortname = staff_member[2]
             role = staff_member[4]
-            closed_tickets = staff_member[5]
 
             embed.add_field(
-                name=f"{i+1}. {username}",
+                name=f"{i}. {username}",
                 value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: **Секрет**",
                 inline=False
             )
