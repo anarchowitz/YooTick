@@ -27,6 +27,46 @@ class Settings(commands.Cog):
         
         return True
 
+    @commands.slash_command(description="[STAFF] - Удалить обращение из базы данных")
+    async def ticket_fix(self, inter, username: str):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        self.db.cursor.execute("SELECT * FROM created_tickets WHERE creator_username = ?", (username,))
+        existing_ticket = self.db.cursor.fetchone()
+
+        if existing_ticket is None:
+            await inter.response.send_message("Обращение не найдено!", ephemeral=True)
+            return
+
+        self.db.cursor.execute("DELETE FROM created_tickets WHERE creator_username = ?", (username,))
+        self.db.conn.commit()
+
+        await inter.response.send_message(f"Обращение пользователя {username} удалено из базы данных", ephemeral=True)
+
+    @commands.slash_command(description="[STAFF] - Установить пинг в тикете")
+    async def ticket_ping(self, inter, value: int):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        if value not in [0, 1]:
+            await inter.response.send_message("Неправильное значение. Должно быть 0 или 1", ephemeral=True)
+            return
+
+        self.db.cursor.execute("SELECT * FROM staff_list WHERE username = ?", (inter.author.name,))
+        staff_member = self.db.cursor.fetchone()
+
+        if staff_member is None:
+            await inter.response.send_message("Сотрудник не найден!", ephemeral=True)
+            return
+
+        self.db.cursor.execute("UPDATE staff_list SET mention = ? WHERE username = ?", (value, inter.author.name))
+        self.db.conn.commit()
+
+        await inter.response.send_message(f"Пинг в тикете установлен на {value}", ephemeral=True)
+
     @commands.slash_command(description="[STAFF] - Просмотр цен")
     async def price(self, inter):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):

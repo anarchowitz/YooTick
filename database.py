@@ -44,7 +44,8 @@ class Database:
                 ticket_name TEXT,
                 user_id INTEGER,
                 role TEXT,
-                closed_tickets INTEGER
+                closed_tickets INTEGER,
+                mention INTEGER
             )
         """)
         self.conn.commit()
