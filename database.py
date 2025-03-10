@@ -16,7 +16,7 @@ class Database:
                 ticket_channel_id INTEGER,
                 counter_tickets INTEGER DEFAULT 0,
                 primetime TEXT,
-                role_ids TEXT
+                work INTEGER DEFAULT 1
             )
         """)
         self.conn.commit()

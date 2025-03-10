@@ -27,6 +27,28 @@ class Settings(commands.Cog):
         
         return True
 
+    @commands.slash_command(description="[DEV] - Установить статус сервера")
+    async def status(self, inter, value: int):
+        if not self.check_staff_permissions(inter, "dev"):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        if value not in [0, 1]:
+            await inter.response.send_message("Неправильное значение. Должно быть 0 или 1", ephemeral=True)
+            return
+
+        self.db.cursor.execute("SELECT * FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        existing_settings = self.db.cursor.fetchone()
+
+        if existing_settings is not None:
+            self.db.cursor.execute("UPDATE settings SET status = ? WHERE guild_id = ?", (value, inter.guild.id))
+        else:
+            self.db.cursor.execute("INSERT INTO settings (guild_id, status) VALUES (?, ?)", (inter.guild.id, value))
+
+        self.db.conn.commit()
+
+        await inter.response.send_message(f"Статус сервера установлен на {value}", ephemeral=True)
+
     @commands.slash_command(description="[STAFF] - Удалить обращение из базы данных")
     async def ticket_fix(self, inter, username: str):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
@@ -572,14 +594,6 @@ class Settings(commands.Cog):
                         style=disnake.TextInputStyle.short,
                     )
                 ),
-                disnake.ui.ActionRow(
-                    disnake.ui.TextInput(
-                        label="Айди ролей",
-                        placeholder="1274758836552728576, 1273961566961799260",
-                        custom_id="role_ids",
-                        style=disnake.TextInputStyle.short,
-                    )
-                ),
             ],
         )
 
@@ -610,7 +624,6 @@ class Settings(commands.Cog):
             category_id = int(inter.text_values['category_id'])
             channel_id = int(inter.text_values['channel_id'])
             primetime = str(inter.text_values['primetime'])
-            role_ids = str(inter.text_values['role_ids'])
 
 
             category = inter.guild.get_channel(category_id)
@@ -631,14 +644,14 @@ class Settings(commands.Cog):
 
             if existing_settings is not None:
                 self.db.cursor.execute("""
-                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime, role_ids)
+                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (inter.guild.id, color, category_id, channel_id, primetime, role_ids))
+                """, (inter.guild.id, color, category_id, channel_id, primetime))
             else:
                 self.db.cursor.execute("""
-                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime, role_ids)
+                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (inter.guild.id, color, category_id, channel_id, primetime, role_ids))
+                """, (inter.guild.id, color, category_id, channel_id, primetime))
 
             self.db.conn.commit()
 

@@ -175,6 +175,12 @@ class Tickets(commands.Cog):
 
         embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
         if inter.data.custom_id == "create_ticket":
+            self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
+            status = self.db.cursor.fetchone()
+
+            if status is not None and status[0] == 0:
+                await inter.response.send_message("🚧 Техработы. Извините за неудобства! Скоро всё починим! 🔧✨", ephemeral=True)
+                return
             self.db.cursor.execute("SELECT * FROM banned_users WHERE user_id = ?", (inter.author.id,))
             banned_user = self.db.cursor.fetchone()
             if banned_user is not None:
@@ -351,7 +357,7 @@ class Tickets(commands.Cog):
         if inter.data.custom_id == "confirm_close_ticket":
             async with self.lock:
                 self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                taken_username = self.db.cursor.fetchone()[0]
+                taken_username = self.db.cursor.fetchone()
                 if taken_username is None:
                     embed1 = disnake.Embed(
                         description=f"Обращение было закрыто - {inter.user.mention}",
