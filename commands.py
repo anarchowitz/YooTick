@@ -531,6 +531,7 @@ class Settings(commands.Cog):
 
             await inter.message.edit(embed=embed)
             await inter.response.send_message("Страница обновлена", ephemeral=True)
+        
         elif inter.data.custom_id == "secret":
             if not self.check_staff_permissions(inter, "dev"):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -548,14 +549,14 @@ class Settings(commands.Cog):
             start = (self.page - 1) * 5
             end = self.page * 5
 
-            for i, staff_member in enumerate(staff_members[start:end]):
+            for i, staff_member in enumerate(staff_members[start:end], start=start+1):
                 username = staff_member[1]
                 shortname = staff_member[2]
                 role = staff_member[4]
                 closed_tickets = staff_member[5]
 
                 embed.add_field(
-                    name=f"{i+1}. {username}",
+                    name=f"{i}. {username}",
                     value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: {closed_tickets}",
                     inline=False
                 )
