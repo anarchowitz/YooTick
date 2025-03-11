@@ -622,23 +622,22 @@ class Settings(commands.Cog):
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
         if inter.data.custom_id == "refund_modal":
-            admin_level = inter.text_values['admin_level_input']
             date_str = inter.text_values['date_input']
             date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
             price = int(inter.text_values['price_input'])
 
             current_date = datetime.date.today()
-            months_diff = (current_date.year - date.year) * 12 + (current_date.month - date.month)
-
+            days_diff = (current_date - date).days
             guaranteed_refund = price / 3
             remaining_price = price - guaranteed_refund
 
-            if months_diff > 5:
+            if days_diff > 150:
                 refund = guaranteed_refund
             else:
-                refund = guaranteed_refund + remaining_price * (1 - (months_diff * 0.2))
+                refund = guaranteed_refund + remaining_price * (1 - (days_diff / 150))
 
             await inter.response.send_message(f"Авто-подсчет возврата: {int(refund)} рублей", ephemeral=True)
+
         if inter.data.custom_id == "settings_modal":
             color = inter.text_values['color']
             category_id = int(inter.text_values['category_id'])

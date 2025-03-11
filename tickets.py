@@ -271,7 +271,20 @@ class Tickets(commands.Cog):
                         pass
 
                     await thread.send(inter.user.mention, embed=ticket_embed, view=view)
-                    
+
+                    self.db.cursor.execute("SELECT primetime FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                    primetime = self.db.cursor.fetchone()
+                    if primetime is not None:
+                        primetime = primetime[0]
+                        start_time, end_time = primetime.split(" - ")
+                        start_hour, start_minute = map(int, start_time.split(":"))
+                        end_hour, end_minute = map(int, end_time.split(":"))
+                        current_time = datetime.datetime.now()
+                        current_hour = current_time.hour
+                        current_minute = current_time.minute
+                        if not (start_hour <= current_hour < end_hour or (current_hour == end_hour and current_minute <= end_minute)):
+                            await thread.send(f"{inter.user.mention}, В данный момент нерабочее время, и время ответа может занять больше времени, чем обычно.\nПожалуйста, оставайтесь на связи, и мы ответим вам, как только сможем.")
+                            return
 
                     info_embed = disnake.Embed(
                         title="Краткая суть обращения:",
@@ -354,6 +367,9 @@ class Tickets(commands.Cog):
 
             await inter.response.send_message(embed=confirmation_embed, view=view)
         
+        if inter.data.custom_id == "cancel_close_ticket":
+            await inter.message.delete()
+
         if inter.data.custom_id == "confirm_close_ticket":
             self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
             taken_username = self.db.cursor.fetchone()
