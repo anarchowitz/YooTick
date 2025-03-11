@@ -401,17 +401,20 @@ class Settings(commands.Cog):
         date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
 
         self.db.cursor.execute(""" 
-            SELECT username, SUM(closed_tickets) FROM date_stats
+            SELECT username, SUM(closed_tickets) AS total_closed
+            FROM date_stats
             WHERE date = ?
             GROUP BY username
+            ORDER BY total_closed DESC
         """, (date.strftime("%d.%m.%Y"),))
         stats = self.db.cursor.fetchall()
 
         embed = disnake.Embed(title=f"Статистика по датам ({date_str})", color=self.embed_color)
-        for username, closed_tickets in stats:
-            embed.add_field(name=username, value=str(closed_tickets), inline=False)
+        for username, total_closed in stats:
+            embed.add_field(name=username, value=f"Закрыто тикетов: {total_closed}", inline=False)
 
         await inter.response.edit_message(embed=embed, content="")
+
 
     @commands.slash_command(description="[DEV] - Статистика сотрудников")
     async def stats(self, inter):
