@@ -44,7 +44,7 @@ async def on_ready():
         db.conn.commit()
         print("Импортед дефаулт фаст коммандс епта")
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
     setuptickets(bot)
     setupcommands(bot)
     setupfastcommands(bot)
