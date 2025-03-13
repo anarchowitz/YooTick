@@ -3,7 +3,6 @@ from disnake.ext import commands
 from database import Database
 
 logger = logging.getLogger('bot')
-logging.basicConfig(encoding='utf-8')
 logger.setLevel(logging.INFO)
 
 error_handler = logging.FileHandler('yoologger.log')
@@ -351,7 +350,7 @@ class Tickets(commands.Cog):
                         return
 
                     self.db.cursor.execute("SELECT thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                    thread_number = self.db.cursor.fetchone()[1]
+                    thread_number = self.db.cursor.fetchone()[0]
                 
                     embed = disnake.Embed(title="", description=f"Успешно взялся за обращение - {inter.author.mention}", color=0xF0C43F,)
                     await inter.response.send_message(embed=embed)
