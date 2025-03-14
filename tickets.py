@@ -194,38 +194,32 @@ class Tickets(commands.Cog):
             existing_ticket = self.db.cursor.fetchone()
 
             self.db.cursor.execute("SELECT * FROM staff_list WHERE user_id = ?", (inter.author.id,))
-            staff = self.db.cursor.fetchone()[1]
-
+            staff = self.db.cursor.fetchone()
             if staff is not None:
-                self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (staff,))
+                self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (staff[1],))
                 closed_tickets = self.db.cursor.fetchone()
                 if closed_tickets is not None:
                     closed_tickets = closed_tickets[0]
-                    self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, staff))
+                    self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, staff[1]))
                     self.db.conn.commit()
-                else:
-                    pass
-            else:
-                pass
 
-            date = datetime.date.today()
-            self.db.cursor.execute(""" 
-                SELECT * FROM date_stats
-                WHERE username = ? AND date = ?
-            """, (staff, date.strftime("%d.%m.%Y")))
-            existing_stat = self.db.cursor.fetchone()
-            if existing_stat is not None:
+                date = datetime.date.today()
                 self.db.cursor.execute(""" 
-                    UPDATE date_stats SET closed_tickets = ?
+                    SELECT * FROM date_stats
                     WHERE username = ? AND date = ?
-                """, (existing_stat[3] + 1, staff, date.strftime("%d.%m.%Y")))
-            else:
-                self.db.cursor.execute(""" 
-                    INSERT INTO date_stats (username, date, closed_tickets)
-                    VALUES (?, ?, 1)
-                """, (staff, date.strftime("%d.%m.%Y")))
-
-            self.db.conn.commit()
+                """, (staff[1], date.strftime("%d.%m.%Y")))
+                existing_stat = self.db.cursor.fetchone()
+                if existing_stat is not None:
+                    self.db.cursor.execute(""" 
+                        UPDATE date_stats SET closed_tickets = ?
+                        WHERE username = ? AND date = ?
+                    """, (existing_stat[3] + 1, staff[1], date.strftime("%d.%m.%Y")))
+                else:
+                    self.db.cursor.execute(""" 
+                        INSERT INTO date_stats (username, date, closed_tickets)
+                        VALUES (?, ?, 1)
+                    """, (staff[1], date.strftime("%d.%m.%Y")))
+                self.db.conn.commit()
 
             if existing_ticket is not None:
                 await inter.response.send_message("🔸 / У вас уже **имеется открытое обращение**. Ожидайте ответа", ephemeral=True)
@@ -323,10 +317,9 @@ class Tickets(commands.Cog):
         if inter.data.custom_id == "take_ticket":
             try:
                 logger.info(f"Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
-                await inter.response.defer()
                 async with self.lock:
                     if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-                        await inter.edit_original_response(content="У вас нет прав для использования этой команды")
+                        await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                         return
 
                     ticket_embed = disnake.Embed(
@@ -402,10 +395,11 @@ class Tickets(commands.Cog):
 
         if inter.data.custom_id == "confirm_close_ticket":
             try:
+                await inter.message.delete()
                 logger.info(f"Пользователь {inter.author.name} подтвердил закрытие тикета {inter.channel.name}")
                 self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                 taken_username = self.db.cursor.fetchone()
-                if taken_username is None:
+                if taken_username is None or taken_username[0] is None:
                     embed1 = disnake.Embed(
                         description=f"Обращение было закрыто - {inter.user.mention}",
                         color=0xF0C43F,

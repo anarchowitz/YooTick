@@ -10,14 +10,6 @@ class Database:
         self.date_stats = None
         self.fast_commands = None
         self.banned_users = None
-    def create_tables(self):
-        self.create_price_list_table()
-        self.create_settings_table()
-        self.create_staff_list_table()
-        self.create_created_tickets_table()
-        self.create_date_stats_table()
-        self.create_fast_commands_table()
-        self.create_banned_users_table()
 
     def create_settings_table(self):
         self.cursor.execute("""
@@ -110,14 +102,14 @@ class Database:
         """)
         self.conn.commit()
 
-    def get_settings(self, guild_id=None, user_id=None):
-        if self.settings is None:
-            if guild_id is not None:
-                self.cursor.execute("SELECT * FROM settings WHERE guild_id = ?", (guild_id,))
-            elif user_id is not None:
-                self.cursor.execute("SELECT * FROM settings WHERE user_id = ?", (user_id,))
-            self.settings = self.cursor.fetchone()
-        return self.settings
+    def get_settings(self, user_id=None, guild_id=None):
+        if user_id is not None:
+            self.cursor.execute("SELECT * FROM settings WHERE user_id = ?", (user_id,))
+        elif guild_id is not None:
+            self.cursor.execute("SELECT * FROM settings WHERE guild_id = ?", (guild_id,))
+        else:
+            raise ValueError("Необходимо указать user_id или guild_id")
+        return self.cursor.fetchone()
 
     def get_staff_list(self):
         if self.staff_list is None:
@@ -149,10 +141,14 @@ class Database:
             self.banned_users = self.cursor.fetchall()
         return self.banned_users
 
-    def update_settings(self, guild_id, embed_color, category_id, ticket_channel_id, primetime):
-        self.cursor.execute("UPDATE settings SET embed_color = ?, category_id = ?, ticket_channel_id = ?, primetime = ? WHERE guild_id = ?", (embed_color, category_id, ticket_channel_id, primetime, guild_id))
+    def update_settings(self, user_id=None, guild_id=None, **kwargs):
+        if user_id is not None:
+            self.cursor.execute("UPDATE settings SET {} WHERE user_id = ?".format(", ".join("{} = ?".format(key) for key in kwargs)), (*kwargs.values(), user_id))
+        elif guild_id is not None:
+            self.cursor.execute("UPDATE settings SET {} WHERE guild_id = ?".format(", ".join("{} = ?".format(key) for key in kwargs)), (*kwargs.values(), guild_id))
+        else:
+            raise ValueError("Необходимо указать user_id или guild_id")
         self.conn.commit()
-        self.settings = None
 
     def update_staff_list(self, username, closed_tickets):
         self.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets, username))

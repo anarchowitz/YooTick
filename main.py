@@ -16,7 +16,13 @@ db = Database("database.db")
 @bot.event
 async def on_ready():
     print(f"Бот запущен / {bot.user}\n_________________")
-    db.create_tables()
+    db.create_settings_table()
+    db.create_price_list_table()
+    db.create_staff_list_table()
+    db.create_created_tickets_table()
+    db.create_date_stats_table()
+    db.create_fast_commands_table()
+    db.create_banned_users_table()
     if not db.cursor.execute("SELECT 1 FROM fast_commands LIMIT 1").fetchone():
         default_commands = [
             ('скинрейв', 'Форма выдачи токенов за регистрацию на скинрейве', 'Что бы мы вам помогли, уточните.\n1) Как давно вы зарегистрировались на SkinRave?\n2) Авторизировались ли вы под своим Steam аккаунтом?\n3) Ссылка на ваш аккаунт на сайте (yooma.su)\n4) Скриншот профиля на SkinRave. \n\n-# Отправил - {author}'),
