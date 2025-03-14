@@ -12,7 +12,7 @@ class Settings(commands.Cog):
         self.page = 1
         self.stats_message = None
         self.embed_color = disnake.Colour.from_rgb(119, 137, 253)
-    
+
     @staticmethod
     def check_staff_permissions(inter, required_role):
         db = Database("database.db")
@@ -21,8 +21,7 @@ class Settings(commands.Cog):
         
         if staff_member is None:
             return False
-        
-        if staff_member[4] != required_role:
+        elif staff_member[4] != required_role:
             return False
         
         return True
@@ -169,7 +168,6 @@ class Settings(commands.Cog):
             select_menu.callback = self.refund_callback
             view.add_item(select_menu)
             await inter.response.edit_message(content="", view=view)
-
 
     async def type_callback(self, inter):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
@@ -369,24 +367,17 @@ class Settings(commands.Cog):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
-        if inter.guild is not None:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
-        else:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE user_id = ?", (inter.author.id,))
-        settings = self.db.cursor.fetchone()
+        settings = self.db.get_settings(guild_id=inter.guild.id)
         if settings is not None:
-            self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
+            self.embed_color = disnake.Color(int(settings[3].lstrip('#'), 16))
 
-        self.db.cursor.execute(""" 
-            SELECT DISTINCT date FROM date_stats
-            ORDER BY date DESC
-        """)
-        dates = self.db.cursor.fetchall()
+        date_stats = self.db.get_date_stats()
+        dates = [date[2] for date in date_stats]
 
         options = []
         for date in dates:
-            date_str = date[0]
-            date_str = date_str.replace('-', '.') 
+            date_str = date
+            date_str = date_str.replace('-', '.')
             options.append(disnake.SelectOption(label=date_str, value=date_str))
 
         view = disnake.ui.View()
@@ -404,14 +395,8 @@ class Settings(commands.Cog):
         date_str = date_str.replace('-', '.')
         date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
 
-        self.db.cursor.execute(""" 
-            SELECT username, SUM(closed_tickets) AS total_closed
-            FROM date_stats
-            WHERE date = ?
-            GROUP BY username
-            ORDER BY total_closed DESC
-        """, (date.strftime("%d.%m.%Y"),))
-        stats = self.db.cursor.fetchall()
+        date_stats = self.db.get_date_stats()
+        stats = [(username, closed_tickets) for username, _, date_stat, closed_tickets in date_stats if date_stat == date.strftime("%d.%m.%Y")]
 
         embed = disnake.Embed(title=f"Статистика по датам ({date_str})", color=self.embed_color)
         for username, total_closed in stats:
@@ -419,25 +404,20 @@ class Settings(commands.Cog):
 
         await inter.response.edit_message(embed=embed, content="")
 
-
     @commands.slash_command(description="[DEV] - Статистика сотрудников")
     async def stats(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
         self.page = 1
-        if inter.guild is not None:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
-        else:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE user_id = ?", (inter.author.id,))
-        settings = self.db.cursor.fetchone()
+        settings = self.db.get_settings(guild_id=inter.guild.id)
         if settings is not None:
-            self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
+            self.embed_color = disnake.Color(int(settings[3].lstrip('#'), 16))
 
-        self.db.cursor.execute("SELECT * FROM staff_list")
-        staff_members = self.db.cursor.fetchall()
-            
-        staff_members.sort(key=lambda x: x[5], reverse=True)
+        staff_list = self.db.get_staff_list()
+        staff_members = [(username, closed_tickets) for _, username, _, _, _, closed_tickets in staff_list]
+
+        staff_members.sort(key=lambda x: x[1], reverse=True)
 
         embed = disnake.Embed(
             title="Статистика сотрудников",
@@ -449,13 +429,10 @@ class Settings(commands.Cog):
         end = self.page * 5
 
         for i, staff_member in enumerate(staff_members[start:end], start=1):
-            username = staff_member[1]
-            shortname = staff_member[2]
-            role = staff_member[4]
-
+            username = staff_member[0]
             embed.add_field(
                 name=f"{i}. {username}",
-                value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: **Секрет**",
+                value=f"🪪 Роль: \n🎫 Закрытых тикетов: **Секрет**",
                 inline=False
             )
 
@@ -478,9 +455,10 @@ class Settings(commands.Cog):
                 return
             if self.page > 1:
                 self.page -= 1
-                self.db.cursor.execute("SELECT * FROM staff_list")
-                staff_members = self.db.cursor.fetchall()
-                staff_members.sort(key=lambda x: x[5], reverse=True)
+                staff_list = self.db.get_staff_list()
+                staff_members = [(username, closed_tickets) for _, username, _, _, _, closed_tickets in staff_list]
+
+                staff_members.sort(key=lambda x: x[1], reverse=True)
 
                 embed = disnake.Embed(
                     title="Статистика сотрудников",
@@ -492,14 +470,10 @@ class Settings(commands.Cog):
                 end = self.page * 5
 
                 for i, staff_member in enumerate(staff_members[start:end], start=1):
-                    username = staff_member[1]
-                    shortname = staff_member[2]
-                    role = staff_member[4]
-                    closed_tickets = staff_member[5]
-
+                    username = staff_member[0]
                     embed.add_field(
                         name=f"{(self.page - 1) * 5 + i}. {username}",
-                        value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: **Секрет**",
+                        value=f"🪪 Роль: \n🎫 Закрытых тикетов: **Секрет**",
                         inline=False
                     )
 
@@ -511,9 +485,10 @@ class Settings(commands.Cog):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                 return
             self.page += 1
-            self.db.cursor.execute("SELECT * FROM staff_list")
-            staff_members = self.db.cursor.fetchall()
-            staff_members.sort(key=lambda x: x[5], reverse=True)
+            staff_list = self.db.get_staff_list()
+            staff_members = [(username, closed_tickets) for _, username, _, _, _, closed_tickets in staff_list]
+
+            staff_members.sort(key=lambda x: x[1], reverse=True)
 
             embed = disnake.Embed(
                 title="Статистика сотрудников",
@@ -525,27 +500,24 @@ class Settings(commands.Cog):
             end = self.page * 5
 
             for i, staff_member in enumerate(staff_members[start:end], start=1):
-                username = staff_member[1]
-                shortname = staff_member[2]
-                role = staff_member[4]
-                closed_tickets = staff_member[5]
-
+                username = staff_member[0]
                 embed.add_field(
                     name=f"{(self.page - 1) * 5 + i}. {username}",
-                    value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: **Секрет**",
+                    value=f"🪪 Роль: \n🎫 Закрытых тикетов: **Секрет**",
                     inline=False
                 )
 
             await inter.message.edit(embed=embed)
             await inter.response.send_message("Страница обновлена", ephemeral=True)
-        
+
         elif inter.data.custom_id == "secret":
             if not self.check_staff_permissions(inter, "dev"):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                 return
-            self.db.cursor.execute("SELECT * FROM staff_list")
-            staff_members = self.db.cursor.fetchall()
-            staff_members.sort(key=lambda x: x[5], reverse=True)
+            staff_list = self.db.get_staff_list()
+            staff_members = [(username, closed_tickets) for _, username, _, _, _, closed_tickets in staff_list]
+
+            staff_members.sort(key=lambda x: x[1], reverse=True)
 
             embed = disnake.Embed(
                 title="Статистика сотрудников",
@@ -557,14 +529,11 @@ class Settings(commands.Cog):
             end = self.page * 5
 
             for i, staff_member in enumerate(staff_members[start:end], start=start+1):
-                username = staff_member[1]
-                shortname = staff_member[2]
-                role = staff_member[4]
-                closed_tickets = staff_member[5]
-
+                username = staff_member[0]
+                closed_tickets = staff_member[1]
                 embed.add_field(
                     name=f"{i}. {username}",
-                    value=f"🪪 Роль: {role}\n🎫 Имя в тикетах: {shortname}\n🎫 Закрытых тикетов: {closed_tickets}",
+                    value=f"🪪 Роль: \n🎫 Закрытых тикетов: {closed_tickets}",
                     inline=False
                 )
 
@@ -625,29 +594,11 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
-        if inter.data.custom_id == "refund_modal":
-            date_str = inter.text_values['date_input']
-            date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
-            price = int(inter.text_values['price_input'])
-
-            current_date = datetime.date.today()
-            days_diff = (current_date - date).days
-            guaranteed_refund = price / 3
-            remaining_price = price - guaranteed_refund
-
-            if days_diff > 150:
-                refund = guaranteed_refund
-            else:
-                refund = guaranteed_refund + remaining_price * (1 - (days_diff / 150))
-
-            await inter.response.send_message(f"Авто-подсчет возврата: {int(refund)} рублей", ephemeral=True)
-
         if inter.data.custom_id == "settings_modal":
             color = inter.text_values['color']
             category_id = int(inter.text_values['category_id'])
             channel_id = int(inter.text_values['channel_id'])
             primetime = str(inter.text_values['primetime'])
-
 
             category = inter.guild.get_channel(category_id)
             channel = inter.guild.get_channel(channel_id)
@@ -666,14 +617,14 @@ class Settings(commands.Cog):
             existing_settings = self.db.cursor.fetchone()
 
             if existing_settings is not None:
-                self.db.cursor.execute("""
-                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (inter.guild.id, color, category_id, channel_id, primetime))
+                self.db.cursor.execute(""" 
+                    UPDATE settings SET embed_color = ?, category_id = ?, ticket_channel_id = ?, primetime = ?
+                    WHERE guild_id = ?
+                """, (color, category_id, channel_id, primetime, inter.guild.id))
             else:
-                self.db.cursor.execute("""
+                self.db.cursor.execute(""" 
                     INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                 """, (inter.guild.id, color, category_id, channel_id, primetime))
 
             self.db.conn.commit()

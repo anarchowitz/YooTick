@@ -113,27 +113,14 @@ class Tickets(commands.Cog):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
             return
-        if inter.guild is not None:
-            self.db.cursor.execute(""" 
-                SELECT embed_color, category_id, ticket_channel_id 
-                FROM settings 
-                WHERE guild_id = ?
-            """, (inter.guild.id,))
-        else:
-            self.db.cursor.execute(""" 
-                SELECT embed_color, category_id, ticket_channel_id 
-                FROM settings 
-                WHERE user_id = ?
-            """, (inter.author.id,))
-        settings = self.db.cursor.fetchone()
-
+        settings = self.db.get_settings(guild_id=inter.guild.id)
         if settings is None:
             await inter.response.send_message("Настройки не найдены!", ephemeral=True)
             return
 
-        embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
-        category_id = settings[1]
-        channel_id = settings[2]
+        embed_color = disnake.Color(int(settings[3].lstrip('#'), 16))
+        category_id = settings[4]
+        channel_id = settings[5]
 
         if inter.guild is not None:
             category = inter.guild.get_channel(category_id)
@@ -154,7 +141,8 @@ class Tickets(commands.Cog):
             "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
             "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
             "**Несоблюдение этих правил может привести к наказанию**.",
-            color=embed_color)
+            color=embed_color
+        )
         embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
         embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
 
@@ -173,18 +161,12 @@ class Tickets(commands.Cog):
     async def on_button_click(self, inter):
         if inter.guild is None:
             pass
-        self.db.cursor.execute(""" 
-            SELECT embed_color, category_id, ticket_channel_id 
-            FROM settings 
-            WHERE guild_id = ?
-        """, (inter.guild.id,))
-        settings = self.db.cursor.fetchone()
-
+        settings = self.db.get_settings(guild_id=inter.guild.id)
         if settings is None:
             await inter.response.send_message("Настройки не найдены!", ephemeral=True)
             return
 
-        embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
+        embed_color = disnake.Color(int(settings[3].lstrip('#'), 16))
         if inter.data.custom_id == "create_ticket":
             self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
             status = self.db.cursor.fetchone()
@@ -276,12 +258,12 @@ class Tickets(commands.Cog):
                     self.db.conn.commit()
                     thread = await inter.channel.create_thread(name=f"ticket-{counter_tickets + 1}", type=disnake.ChannelType.private_thread)
                     await thread.edit(invitable=False, auto_archive_duration=disnake.ThreadArchiveDuration.week)
-                    
+
                     thread_number = int(thread.name.split("-")[1])
-                    self.db.cursor.execute("INSERT INTO created_tickets (thread_id, creator_username, creator_id, thread_number) VALUES (?, ?, ?, ?)", 
-                                        (thread.id, inter.author.name, inter.author.id, thread_number))
+                    self.db.cursor.execute("INSERT INTO created_tickets (thread_id, creator_username, creator_id, thread_number) VALUES (?, ?, ?, ?)",
+                                          (thread.id, inter.author.name, inter.author.id, thread_number))
                     self.db.conn.commit()
-                    
+
                     ticket_embed = disnake.Embed(
                         title="Спасибо за обращение в клиенсткую поддержку",
                         description="Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
@@ -309,7 +291,7 @@ class Tickets(commands.Cog):
                         user_id = result[1]
                         ping_message += f"<@{user_id}> "
 
-                    if ping_message: 
+                    if ping_message:
                         mention = await thread.send(ping_message)
                         await mention.delete()
                     else:
@@ -331,15 +313,10 @@ class Tickets(commands.Cog):
                             await thread.send(f"{inter.user.mention}, В данный момент нерабочее время, и время ответа может занять больше времени, чем обычно.\nПожалуйста, оставайтесь на связи, и мы ответим вам, как только сможем.")
                             pass
 
-                    info_embed = disnake.Embed(
-                        title="Краткая суть обращения:",
-                        description=description,
-                        color=0xF0C43F
-                    )
+                    info_embed = disnake.Embed(title="", description=f"Краткая суть обращения: {description}", color=0xF0C43F)
                     await thread.send(embed=info_embed)
 
                     await inter.followup.send(rf":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True)
-
 
             await inter.response.send_modal(CreateTicketModal())
         
@@ -351,7 +328,7 @@ class Tickets(commands.Cog):
                     if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                         await inter.edit_original_response(content="У вас нет прав для использования этой команды")
                         return
-                    
+
                     ticket_embed = disnake.Embed(
                         title="Спасибо за обращение в клиенсткую поддержку",
                         description="Спасибо за ваше обращение. Пожалуйста, **опишите суть вашей проблемы подробнее**, чтобы мы могли оказать вам **наилучшее решение**.\n\n"
@@ -382,12 +359,11 @@ class Tickets(commands.Cog):
 
                     self.db.cursor.execute("SELECT thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                     thread_number = self.db.cursor.fetchone()[0]
-                
+
                     embed = disnake.Embed(title="", description=f"Успешно взялся за обращение - {inter.author.mention}", color=0xF0C43F)
                     await inter.followup.send(embed=embed)
 
-                    self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", 
-                                            (inter.author.name, inter.channel.id))
+                    self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", (inter.author.name, inter.channel.id))
                     self.db.conn.commit()
 
                     self.db.cursor.execute("SELECT ticket_name FROM staff_list WHERE username = ?", (inter.author.name,))
@@ -400,10 +376,10 @@ class Tickets(commands.Cog):
                     await inter.channel.edit(name=new_name)
             except Exception as e:
                 logger.error(f"Ошибка при взятии тикета {inter.channel.name}: {e}")
-        
+
         if inter.data.custom_id == "close_ticket":
             try:
-                logger.info(f"Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
+                logger.info(f"Пользователь {inter.author.name} пытается закрыть тикет {inter.channel.name}")
                 confirmation_embed = disnake.Embed(
                     title="Подтверждение",
                     description="Вы уверены что хотите закрыть обращение?",
@@ -507,11 +483,10 @@ class Tickets(commands.Cog):
                     self.db.conn.commit()
             except Exception as e:
                 logger.error(f"Ошибка при закрытии тикета {inter.channel.name}: {e}")
-                    
-        
+
         if inter.data.custom_id == "confirm_close_with_reason_ticket":
             try:
-                logger.info(f"Пользователь {inter.author.name} пытается закрыть тикет с причиной {inter.channel.name}")
+                logger.info(f"Пользователь {inter.author.name} подтвердил закрытие тикета с причиной {inter.channel.name}")
                 if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                     await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                     return
@@ -519,7 +494,7 @@ class Tickets(commands.Cog):
                 self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                 taken_username = self.db.cursor.fetchone()
                 if taken_username is not None:
-                    taken_username = taken_username[0] 
+                    taken_username = taken_username[0]
 
                 class CloseTicketModal(disnake.ui.Modal):
                     def __init__(self, taken_username, bot):
@@ -656,7 +631,7 @@ class Tickets(commands.Cog):
                     self.db.conn.commit()
 
                     thread_number = self.db.cursor.execute("SELECT thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,)).fetchone()[0]
-                    
+
                     self.db.cursor.execute("SELECT ticket_name FROM staff_list WHERE username = ?", (staff_name,))
                     ticket_name = self.db.cursor.fetchone()
                     if ticket_name is not None:
