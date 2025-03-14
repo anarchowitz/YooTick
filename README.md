@@ -6,6 +6,11 @@
 [![Telegram Contact](https://img.shields.io/badge/Contact-Telegram-blue?logo=telegram)](https://t.me/anarchowitz)
 [![RU/EU Support](https://img.shields.io/badge/Support-RU%2FEU-orange)](https://yooma.su)
 
+[![SQLite](https://img.shields.io/badge/SQLite-3.43%2B-003B57?logo=sqlite&logoColor=white)](https://sqlite.org)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Disnake](https://img.shields.io/badge/Disnake-2.9.0%2B-5865F2?logo=discord&logoColor=white)](https://docs.disnake.dev)
+
+
 ## 🌟 Особенности
 - 🛠️ Полная кастомизация под ваш сервер
 - 📊 Встроенная система тикетов и управления обращениями
