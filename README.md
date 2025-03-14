@@ -6,10 +6,9 @@
 [![Telegram Contact](https://img.shields.io/badge/Contact-Telegram-blue?logo=telegram)](https://t.me/anarchowitz)
 [![RU/EU Support](https://img.shields.io/badge/Support-RU%2FEU-orange)](https://yooma.su)
 
-[![SQLite](https://img.shields.io/badge/-SQLite-003B57?logo=sqlite&logoColor=white)](https://sqlite.org)
-[![Python](https://img.shields.io/badge/-Python-3776AB?logo=python&logoColor=white)](https://python.org)
-[![Disnake](https://img.shields.io/badge/-Disnake-5865F2?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAYFJREFUeNqkk79KA0EQxr9bE4u0FkGCBHJgo4WIjUdqYWNnI/gGUuQNtE6lrxALQbC1sxAsBAtBEA8sBAtB0gCBnJwhV4jZ/c3s3t0m5g4Cf9idmW++/5mdUc45/LLKfA5jDCilwFoLWmsuM5TneZ6HsiyRpil4nscF0zR5nGXZbwDvYIxBFEVwOBxgt9tBHMdQFAV0XQd934Pv+6C1hiRJYLlcwnq9htVq9QpQSh3HMYRhCLvdjjsNwwDn8xmOx6MEmqYBpRREUQSbzQbSNH0FjOOYJUkC+/0euq6Duq6hqiooy5KDfd9D0zQwDAPEcQxpmvI3yLLsBTCO4yiE4M5lWfKOQgh+kyzL+BvM8xxCCJ5zu91ClmXPAKXUyTAMsN/vuTMpCAKYpgm6roPz+QyXy4XHp9MJhBA85/F4hMPh8AxQSj0HwzBwZ1mWvLOiKGCeZx6TAgpSQApoTl3XzwD6nF3X8WakgBQQhBQ0TcMKSAG9AVJACmjO6XSCy+UCt9vtGaCUOtM0cWdSQJtO08QKSAG9ASkgBTSHFFyvV7jf788ApdTzPMN2u+XOpIA2JQWkgBSQAprz8fEBTdPA4/F4BiilXkII/nWpgBSQAlJACkgBKaA5t9uN53x9fb0CDnwv/AN8CzAAG5pLZRsaN0EAAAAASUVORK5CYII=)](https://docs.disnake.dev)
-
+[![SQLite](https://img.shields.io/badge/SQLite-✓-003B57?logo=sqlite)](https://sqlite.org)
+[![Python](https://img.shields.io/badge/Python-✓-3776AB?logo=python)](https://python.org)
+[![Disnake](https://img.shields.io/badge/Disnake-✓-5865F2?logo=discord)](https://docs.disnake.dev)
 
 ## 🌟 Особенности
 - 🛠️ Полная кастомизация под ваш сервер
