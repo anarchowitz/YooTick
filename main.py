@@ -48,4 +48,6 @@ if __name__ == "__main__":
     setuptickets(bot)
     setupcommands(bot)
     setupfastcommands(bot)
-    bot.run("MTI3Mzk1NzgzNTI1MTc4MTY0Mg.GgCwOB.0z4FATO1eYK1d7uoDQxTI6ZBrbfS85x-rCghrc")
+    with open('yootoken.txt', 'r') as file:
+        token = file.read().strip()
+    bot.run(token)
