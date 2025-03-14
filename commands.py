@@ -27,6 +27,10 @@ class Settings(commands.Cog):
         
         return True
 
+    @commands.slash_command(description="Показать пинг обработки бота")
+    async def ping(self, inter):
+        await inter.response.send_message(f"Пинг: {self.bot.latency * 1000:.2f}ms", ephemeral=True)
+
     @commands.slash_command(description="[STAFF] - Показать доступные быстрые команды")
     async def fastcommands(self, inter):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
