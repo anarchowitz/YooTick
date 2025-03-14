@@ -1,4 +1,4 @@
-import disnake
+import disnake, datetime
 from disnake.ext import commands
 from database import Database
 from tickets import setuptickets
@@ -15,7 +15,7 @@ db = Database("database.db")
 
 @bot.event
 async def on_ready():
-    print(f"Бот запущен / {bot.user}\n_________________")
+    print(f"{bot.user} запущен\n Версия: {version}\n Пользователей: {len(bot.users)}\n Время запуска: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n_________________")
     db.create_settings_table()
     db.create_price_list_table()
     db.create_staff_list_table()
