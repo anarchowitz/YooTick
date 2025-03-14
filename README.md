@@ -53,3 +53,30 @@ default_commands = [
 
 **📬 Контакты для заказа кастомизации:**
 [**Telegram: @anarchowitz**](https://t.me/anarchowitz)
+
+## 🛠️ Управление через Discord
+Разработчики могут использовать: (с указаной role = dev в базе данных)
+```
+/settings
+/date_stats
+/stats
+/status
+/sum
+/ticket_msg
+```
+и команды сотрудников.
+Сотрудники могут использовать: (с указаной role = staff в базе данных)
+```
+/ticket_fix
+/ticket_ping
+/ticket_ban
+/ticket_unban
+/fastcommands
+```
+## 📄 Лицензия
+
+Проект распространяется под лицензией MIT License.
+При поддержке [yooma.su](https://yooma.su/ru)
+
+[![Star on GitHub](https://img.shields.io/github/stars/johnsmith/YooTick.svg?style=social)](https://github.com/Anarchowitz/YooTick/)
+
