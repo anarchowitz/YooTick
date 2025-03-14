@@ -5,6 +5,7 @@
 
 [![Telegram Contact](https://img.shields.io/badge/Contact-Telegram-blue?logo=telegram)](https://t.me/anarchowitz)
 [![RU/EU Support](https://img.shields.io/badge/Support-RU%2FEU-orange)](https://yooma.su)
+[![Open Source](https://img.shields.io/badge/License-MIT-yellow?logo=open-source-initiative)](https://opensource.org/licenses/MIT)
 
 [![SQLite](https://img.shields.io/badge/SQLite-✓-003B57?logo=sqlite)](https://sqlite.org)
 [![Python](https://img.shields.io/badge/Python-✓-3776AB?logo=python)](https://python.org)
@@ -79,7 +80,7 @@ default_commands = [
 ```
 ## 📄 Лицензия
 
-Проект распространяется под лицензией [MIT License](https://github.com/Anarchowitz/YooTickPrivate/blob/main/LICENSE).\n
+Проект распространяется под лицензией [MIT License](https://github.com/Anarchowitz/YooTickPrivate/blob/main/LICENSE).
 При поддержке [yooma.su](https://yooma.su/ru)
 
 # [![Star on GitHub](https://img.shields.io/github/stars/anarchowitz/YooTick.svg?style=social)](https://github.com/anarchowitz/YooTick/stargazers)
