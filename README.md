@@ -78,5 +78,5 @@ default_commands = [
 Проект распространяется под лицензией MIT License.
 При поддержке [yooma.su](https://yooma.su/ru)
 
-[![Star on GitHub](https://img.shields.io/github/stars/johnsmith/YooTick.svg?style=social)](https://github.com/Anarchowitz/YooTick/)
+[![Star on GitHub](https://img.shields.io/github/stars/johnsmith/YooTick.svg?style=social)](https://github.com/Anarchowitz/YooTick/stargazers)
 
