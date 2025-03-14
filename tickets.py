@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 import disnake, asyncio, datetime, logging
 from disnake.ext import commands
 from database import Database
 
-error_handler = logging.FileHandler('yoologger.log')
+error_handler = logging.FileHandler('yoologger.log', encoding='utf-8')
 
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)')
 error_handler.setFormatter(formatter)
@@ -188,7 +189,7 @@ class Tickets(commands.Cog):
                 self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
                 status = self.db.cursor.fetchone()
 
-                if status is not None and status[0] == 0:
+                if status is not None and status[0] == 1:
                     await inter.response.send_message("🚧 Техработы. Извините за неудобства! Скоро всё починим! 🔧✨", ephemeral=True)
                     return
                 self.db.cursor.execute("SELECT * FROM banned_users WHERE user_id = ?", (inter.author.id,))
@@ -313,9 +314,10 @@ class Tickets(commands.Cog):
         if inter.data.custom_id == "take_ticket":
             try:
                 logger.info(f"Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
+                await inter.response.defer()
                 async with self.lock:
                     if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-                        await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                        await inter.edit_original_response(content="У вас нет прав для использования этой команды")
                         return
                     
                     ticket_embed = disnake.Embed(
@@ -338,22 +340,22 @@ class Tickets(commands.Cog):
                     view.add_item(close_button)
                     view.add_item(transfer_button)
 
-                    await inter.message.edit(embed=ticket_embed, view=view)
+                    await inter.edit_original_response(embed=ticket_embed, view=view)
 
                     self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                     taken_ticket = self.db.cursor.fetchone()
                     if taken_ticket is not None and taken_ticket[0] is not None:
-                        await inter.response.send_message("Этот обращение уже взят!", ephemeral=True)
+                        await inter.edit_original_response(content="Этот обращение уже взят!")
                         return
 
                     self.db.cursor.execute("SELECT thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                     thread_number = self.db.cursor.fetchone()[0]
                 
-                    embed = disnake.Embed(title="", description=f"Успешно взялся за обращение - {inter.author.mention}", color=0xF0C43F,)
-                    await inter.response.send_message(embed=embed)
+                    embed = disnake.Embed(title="", description=f"Успешно взялся за обращение - {inter.author.mention}", color=0xF0C43F)
+                    await inter.followup.send(embed=embed)
 
                     self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", 
-                                        (inter.author.name, inter.channel.id))
+                                            (inter.author.name, inter.channel.id))
                     self.db.conn.commit()
 
                     self.db.cursor.execute("SELECT ticket_name FROM staff_list WHERE username = ?", (inter.author.name,))
@@ -386,7 +388,7 @@ class Tickets(commands.Cog):
                 await inter.response.send_message(embed=confirmation_embed, view=view)
             except Exception as e:
                 logger.error(f"Ошибка при взятии тикета {inter.channel.name}: {e}")
-            
+
         if inter.data.custom_id == "cancel_close_ticket":
             await inter.message.delete()
 
@@ -443,7 +445,11 @@ class Tickets(commands.Cog):
                             embed.add_field(name=":mag_right: Взял обращение", value=f"<@{inter.author.id}>", inline=True)
                         # embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                         embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                        await creator.send(embed=embed)
+                        try:
+                            await creator.send(embed=embed)
+                        except disnake.HTTPException as e:
+                            if e.status == 403:
+                                pass
                     date = datetime.date.today()
                     self.db.cursor.execute(""" 
                         SELECT * FROM date_stats
