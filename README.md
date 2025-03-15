@@ -4,7 +4,7 @@
 *Полностью настраиваемый бот для управления тикетами на вашем Discord-сервере*
 
 [![Telegram Contact](https://img.shields.io/badge/Contact-Telegram-blue?logo=telegram)](https://t.me/anarchowitz)
-[![RU/EU Support](https://img.shields.io/badge/Support-RU%2FEU-orange)](https://yooma.su)
+[![RU Support](https://img.shields.io/badge/Support-RU-red)](https://yooma.su)
 [![Open Source](https://img.shields.io/badge/License-MIT-yellow?logo=open-source-initiative)](https://opensource.org/licenses/MIT)
 
 [![SQLite](https://img.shields.io/badge/SQLite-✓-003B57?logo=sqlite)](https://sqlite.org)
