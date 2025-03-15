@@ -358,28 +358,7 @@ class Settings(commands.Cog):
         )
 
         await inter.response.send_modal(modal)
-
-    async def refund_modal_callback(self, inter):
-        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-
-        admin_level = inter.text_values['admin_level_input']
-        date_str = inter.text_values['date_input']
-        date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
-        price = int(inter.text_values['price_input'])
-
-        current_date = datetime.date.today()
-        days_diff = (current_date - date).days
-        percent_diff = days_diff * 0.7
-
-        guaranteed_refund = price / 3
-        remaining_price = price - guaranteed_refund
-        refund = remaining_price - (remaining_price * percent_diff / 100)
-
-        final_refund = refund + guaranteed_refund
-
-        await inter.response.send_message(f"Авто-подсчет возврата: {int(final_refund)} рублей", ephemeral=True)
+        self.bot.add_modal_handler(self.refund_modal_callback)
     
 
     @commands.slash_command(description="[DEV] - Просмотр статистики по датам")
@@ -619,14 +598,6 @@ class Settings(commands.Cog):
                         style=disnake.TextInputStyle.short,
                     )
                 ),
-                disnake.ui.ActionRow(
-                    disnake.ui.TextInput(
-                        label="Логгер (1 - включен, 0 - выключен)",
-                        placeholder="1",
-                        custom_id="logging",
-                        style=disnake.TextInputStyle.short,
-                    )
-                ),
             ],
         )
 
@@ -634,12 +605,31 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
+        if inter.data.custom_id == "refund_modal":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            admin_level = inter.text_values['admin_level_input']
+            date_str = inter.text_values['date_input']
+            date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
+            price = int(inter.text_values['price_input'])
+
+            current_date = datetime.date.today()
+            days_diff = (current_date - date).days
+            percent_diff = days_diff * 0.7
+
+            guaranteed_refund = price / 3
+            remaining_price = price - guaranteed_refund
+            refund = remaining_price - (remaining_price * percent_diff / 100)
+
+            final_refund = refund + guaranteed_refund
+
+            await inter.response.send_message(f"Авто-подсчет возврата: {int(final_refund)} рублей", ephemeral=True)
         if inter.data.custom_id == "settings_modal":
             color = inter.text_values['color']
             category_id = int(inter.text_values['category_id'])
             channel_id = int(inter.text_values['channel_id'])
             primetime = str(inter.text_values['primetime'])
-            logging_status = int(inter.text_values['logging'])
 
             category = inter.guild.get_channel(category_id)
             channel = inter.guild.get_channel(channel_id)
@@ -661,12 +651,12 @@ class Settings(commands.Cog):
                 self.db.cursor.execute(""" 
                     UPDATE settings SET embed_color = ?, category_id = ?, ticket_channel_id = ?, primetime = ?, logging = ?
                     WHERE guild_id = ?
-                """, (color, category_id, channel_id, primetime, logging_status, inter.guild.id))
+                """, (color, category_id, channel_id, primetime, inter.guild.id))
             else:
                 self.db.cursor.execute(""" 
                     INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime, logging)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (inter.guild.id, color, category_id, channel_id, primetime, logging_status))
+                """, (inter.guild.id, color, category_id, channel_id, primetime))
 
             self.db.conn.commit()
 
@@ -674,8 +664,8 @@ class Settings(commands.Cog):
                 embed=disnake.Embed(title="Настройки сохранены", description=f"Цвет боковой полоски: {color}\n"
                 f"Айди категории тикетов: {category_id}\n"
                 f"Айди канала тикетов: {channel_id}\n"
-                f"Рабочее время: {primetime}\n"
-                f"Логгер: {'Включен' if logging_status == 1 else 'Выключен'}", color=self.embed_color),
+                f"Рабочее время: {primetime}\n",
+                color=self.embed_color),
                 ephemeral=True
             )
 
