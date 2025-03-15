@@ -1,21 +1,17 @@
-# -*- coding: utf-8 -*-
 import disnake, asyncio, datetime, logging
 from disnake.ext import commands
 from database import Database
 
-error_handler = logging.FileHandler('yoologger.log', encoding='cp1251')
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)')
-error_handler.setFormatter(formatter)
 logger = logging.getLogger('bot')
 logger.setLevel(logging.INFO)
-logger.addHandler(error_handler)
 
 class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = Database("database.db")
         self.lock = asyncio.Lock()
+        
     
     @staticmethod
     def check_staff_permissions(inter, required_role):
@@ -307,7 +303,7 @@ class Tickets(commands.Cog):
                             await thread.send(f"{inter.user.mention}, В данный момент нерабочее время, и время ответа может занять больше времени, чем обычно.\nПожалуйста, оставайтесь на связи, и мы ответим вам, как только сможем.")
                             pass
 
-                    info_embed = disnake.Embed(title="", description=f"Краткая суть обращения: {description}", color=0xF0C43F)
+                    info_embed = disnake.Embed(title="Краткая суть обращения:", description=description, color=0xF0C43F)
                     await thread.send(embed=info_embed)
 
                     await inter.followup.send(rf":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True)
@@ -317,7 +313,7 @@ class Tickets(commands.Cog):
         if inter.data.custom_id == "take_ticket":
             await inter.response.defer()
             try:
-                logger.info(f"Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
+                logger.info(f"[TICKETS] Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
                 async with self.lock:
                     if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                         await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -373,7 +369,7 @@ class Tickets(commands.Cog):
 
         if inter.data.custom_id == "close_ticket":
             try:
-                logger.info(f"Пользователь {inter.author.name} пытается закрыть тикет {inter.channel.name}")
+                logger.info(f"[TICKETS] Пользователь {inter.author.name} пытается закрыть тикет {inter.channel.name}")
                 confirmation_embed = disnake.Embed(
                     title="Подтверждение",
                     description="Вы уверены что хотите закрыть обращение?",
@@ -397,7 +393,7 @@ class Tickets(commands.Cog):
         if inter.data.custom_id == "confirm_close_ticket":
             try:
                 await inter.message.delete()
-                logger.info(f"Пользователь {inter.author.name} подтвердил закрытие тикета {inter.channel.name}")
+                logger.info(f"[TICKETS] Пользователь {inter.author.name} подтвердил закрытие тикета {inter.channel.name}")
                 self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                 taken_username = self.db.cursor.fetchone()
                 if taken_username is None or taken_username[0] is None:
@@ -481,7 +477,7 @@ class Tickets(commands.Cog):
 
         if inter.data.custom_id == "confirm_close_with_reason_ticket":
             try:
-                logger.info(f"Пользователь {inter.author.name} подтвердил закрытие тикета с причиной {inter.channel.name}")
+                logger.info(f"[TICKETS] Пользователь {inter.author.name} подтвердил закрытие тикета с причиной {inter.channel.name}")
                 if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                     await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                     return

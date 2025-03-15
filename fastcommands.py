@@ -1,6 +1,9 @@
-import disnake, random
+import disnake, random, logging
 from disnake.ext import commands
 from database import Database
+
+logger = logging.getLogger('bot')
+logger.setLevel(logging.INFO)
 
 class FastCommand(commands.Cog):
     def __init__(self, bot):
@@ -38,6 +41,9 @@ class FastCommand(commands.Cog):
                 await message.delete()
                 response = result[0].replace("{author}", message.author.name)
                 await message.channel.send(response)
+                logger.info(f"[FCOMMAND] Быстрая команда - '{command}' использована пользователем {message.author.name}")
+            else:
+                logger.info(f"[FCOMMAND] Неизвестная команда '{command}' использована пользователем {message.author.name}")
 
 def setupfastcommands(bot):
     bot.add_cog(FastCommand(bot))
