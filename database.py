@@ -22,7 +22,8 @@ class Database:
                 ticket_channel_id INTEGER,
                 counter_tickets INTEGER DEFAULT 0,
                 primetime TEXT,
-                status INTEGER DEFAULT 1
+                status INTEGER DEFAULT 1,
+                logging INTEGER DEFAULT 1
             )
         """)
         self.conn.commit()
