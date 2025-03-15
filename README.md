@@ -80,6 +80,10 @@ default_commands = [
 /ticket_unban
 /fastcommands
 ```
+и команды для всех
+```
+/ping
+```
 ## 📄 Лицензия
 
 Проект распространяется под лицензией [MIT License](https://github.com/Anarchowitz/YooTickPrivate/blob/main/LICENSE).
