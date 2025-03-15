@@ -315,6 +315,7 @@ class Tickets(commands.Cog):
             await inter.response.send_modal(CreateTicketModal())
         
         if inter.data.custom_id == "take_ticket":
+            await inter.response.defer()
             try:
                 logger.info(f"Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
                 async with self.lock:
