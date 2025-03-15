@@ -3,6 +3,8 @@
 **Лучшая бесплатная замена платным Akemi (обращение) и TicketTool (тикеты)**  
 *Полностью настраиваемый бот для управления тикетами на вашем Discord-сервере*
 
+[![Sponsored By](https://img.shields.io/badge/Sponsored_By-yooma.su-FF6F61?logo=github-sponsors)](https://yooma.su)
+
 [![Telegram Contact](https://img.shields.io/badge/Contact-Telegram-blue?logo=telegram)](https://t.me/anarchowitz)
 [![RU Support](https://img.shields.io/badge/Support-RU-red)](https://yooma.su)
 [![Open Source](https://img.shields.io/badge/License-MIT-yellow?logo=open-source-initiative)](https://opensource.org/licenses/MIT)
