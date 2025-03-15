@@ -454,10 +454,9 @@ class Settings(commands.Cog):
             for i, staff_member in enumerate(staff_members[start:end], start=1):
                 username = staff_member[1]
                 role = staff_member[4]
-                closed_tickets = staff_member[5]
                 embed.add_field(
                     name=f"{i}. {username}",
-                    value=f"Роль: {role}\nЗакрытых тикетов: **Секрет**",
+                    value=f"🪪 Роль: {role}\n🎫 Закрытых тикетов: **Секрет**",
                     inline=False
                 )
             view = disnake.ui.View()
