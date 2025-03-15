@@ -1,9 +1,10 @@
-import disnake, datetime
+import disnake, datetime, logging
 from math import ceil
 from disnake.ext import commands
 from database import Database
 
-watermark = "Author : @anarchowitz"
+logger = logging.getLogger('bot')
+logger.setLevel(logging.INFO)
 
 class Settings(commands.Cog):
     def __init__(self, bot):
@@ -28,106 +29,125 @@ class Settings(commands.Cog):
 
     @commands.slash_command(description="Показать пинг обработки бота")
     async def ping(self, inter):
-        await inter.response.send_message(f"Пинг: {self.bot.latency * 1000:.2f}ms", ephemeral=True)
+        try:
+            await inter.response.send_message(f"Пинг: {self.bot.latency * 1000:.2f}ms", ephemeral=True)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ping")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при получении пинга", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при получении пинга: {e}")
 
     @commands.slash_command(description="[STAFF] - Показать доступные быстрые команды")
     async def fastcommands(self, inter):
-        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-
-        self.db.cursor.execute("SELECT command_name, description FROM fast_commands")
-        fast_commands = self.db.cursor.fetchall()
-
-        embed = disnake.Embed(title="Доступные быстрые команды", color=self.embed_color)
-
-        for command in fast_commands:
-            embed.add_field(name=f".{command[0]}", value=command[1], inline=False)
-
-        await inter.response.send_message(embed=embed)
+        try:
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /fastcommands, но не имеет прав")
+                return
+            self.db.cursor.execute("SELECT command_name, description FROM fast_commands")
+            fast_commands = self.db.cursor.fetchall()
+            embed = disnake.Embed(title="Доступные быстрые команды", color=self.embed_color)
+            for command in fast_commands:
+                embed.add_field(name=f".{command[0]}", value=command[1], inline=False)
+            await inter.response.send_message(embed=embed)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /fastcommands")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при получении списка быстрых команд", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при получении списка быстрых команд: {e}")
 
     @commands.slash_command(description="[DEV] - Установить статус тех.работ тикетов")
     async def status(self, inter, value: int):
-        if not self.check_staff_permissions(inter, "dev"):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-
-        if value not in [0, 1]:
-            await inter.response.send_message("Неправильное значение. Должно быть 0 или 1", ephemeral=True)
-            return
-
-        self.db.cursor.execute("SELECT * FROM settings WHERE guild_id = ?", (inter.guild.id,))
-        existing_settings = self.db.cursor.fetchone()
-
-        if existing_settings is not None:
-            self.db.cursor.execute("UPDATE settings SET status = ? WHERE guild_id = ?", (value, inter.guild.id))
-        else:
-            self.db.cursor.execute("INSERT INTO settings (guild_id, status) VALUES (?, ?)", (inter.guild.id, value))
-
-        self.db.conn.commit()
-
-        await inter.response.send_message(f"Статус тех.работ установлен на {value}", ephemeral=True)
+        try:
+            if not self.check_staff_permissions(inter, "dev"):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /status, но не имеет прав")
+                return
+            if value not in [0, 1]:
+                await inter.response.send_message("Неправильное значение. Должно быть 0 или 1", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /status с неправильным значением")
+                return
+            self.db.cursor.execute("SELECT * FROM settings WHERE guild_id = ?", (inter.guild.id,))
+            existing_settings = self.db.cursor.fetchone()
+            if existing_settings is not None:
+                self.db.cursor.execute("UPDATE settings SET status = ? WHERE guild_id = ?", (value, inter.guild.id))
+            else:
+                self.db.cursor.execute("INSERT INTO settings (guild_id, status) VALUES (?, ?)", (inter.guild.id, value))
+            self.db.conn.commit()
+            await inter.response.send_message(f"Статус тех.работ установлен на {value}", ephemeral=True)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /status")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при установке статуса тех.работ", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при установке статуса тех.работ: {e}")
 
     @commands.slash_command(description="[STAFF] - Удалить обращение из базы данных")
     async def ticket_fix(self, inter, username: str):
-        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-
-        self.db.cursor.execute("SELECT * FROM created_tickets WHERE creator_username = ?", (username,))
-        existing_ticket = self.db.cursor.fetchone()
-
-        if existing_ticket is None:
-            await inter.response.send_message("Обращение не найдено!", ephemeral=True)
-            return
-
-        self.db.cursor.execute("DELETE FROM created_tickets WHERE creator_username = ?", (username,))
-        self.db.conn.commit()
-
-        await inter.response.send_message(f"Обращение пользователя {username} удалено из базы данных", ephemeral=True)
+        try:
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ticket_fix, но не имеет прав")
+                return
+            self.db.cursor.execute("SELECT * FROM created_tickets WHERE creator_username = ?", (username,))
+            existing_ticket = self.db.cursor.fetchone()
+            if existing_ticket is None:
+                await inter.response.send_message("Обращение не найдено!", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ticket_fix, но обращение не найдено")
+                return
+            self.db.cursor.execute("DELETE FROM created_tickets WHERE creator_username = ?", (username,))
+            self.db.conn.commit()
+            await inter.response.send_message(f"Обращение пользователя {username} удалено из базы данных", ephemeral=True)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /ticket_fix")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при удалении обращения", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при удалении обращения: {e}")
 
     @commands.slash_command(description="[STAFF] - Установить авто-пинг в тикете")
     async def ticket_ping(self, inter, value: int):
-        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-
-        if value not in [0, 1]:
-            await inter.response.send_message("Неправильное значение. Должно быть 0 или 1", ephemeral=True)
-            return
-
-        self.db.cursor.execute("SELECT * FROM staff_list WHERE username = ?", (inter.author.name,))
-        staff_member = self.db.cursor.fetchone()
-
-        if staff_member is None:
-            await inter.response.send_message("Сотрудник не найден!", ephemeral=True)
-            return
-
-        self.db.cursor.execute("UPDATE staff_list SET mention = ? WHERE username = ?", (value, inter.author.name))
-        self.db.conn.commit()
-
-        await inter.response.send_message(f"Авто-пинг в тикете установлен на {value}", ephemeral=True)
+        try:
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ticket_ping, но не имеет прав")
+                return
+            if value not in [0, 1]:
+                await inter.response.send_message("Неправильное значение. Должно быть 0 или 1", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ticket_ping с неправильным значением")
+                return
+            self.db.cursor.execute("SELECT * FROM staff_list WHERE username = ?", (inter.author.name,))
+            staff_member = self.db.cursor.fetchone()
+            if staff_member is None:
+                await inter.response.send_message("Сотрудник не найден!", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ticket_ping, но сотрудник не найден")
+                return
+            self.db.cursor.execute("UPDATE staff_list SET mention = ? WHERE username = ?", (value, inter.author.name))
+            self.db.conn.commit()
+            await inter.response.send_message(f"Авто-пинг в тикете установлен на {value}", ephemeral=True)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /ticket_ping")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при установке авто-пинга", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при установке авто-пинга: {e}")
 
     @commands.slash_command(description="[STAFF] - Просмотр цен")
     async def price(self, inter):
-        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-
-        view = disnake.ui.View()
-        select_menu = disnake.ui.Select(
-            placeholder="Выберите пункт",
-            custom_id="price_select",
-            options=[
-                disnake.SelectOption(label="Докупка", value="докупка"),
-                disnake.SelectOption(label="Дополнительные услуги", value="дополнительные услуги"),
-                disnake.SelectOption(label="Авто-подсчет возврата", value="авто-подсчет возврата"),
-            ]
-        )
-        select_menu.callback = self.price_callback
-        view.add_item(select_menu)
-
-        await inter.response.send_message("", view=view)
+        try:
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /price, но не имеет прав")
+                return
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите пункт",
+                custom_id="price_select",
+                options=[
+                    disnake.SelectOption(label="Докупка", value="докупка"),
+                    disnake.SelectOption(label="Дополнительные услуги", value="дополнительные услуги"),
+                    disnake.SelectOption(label="Авто-подсчет возврата", value="авто-подсчет возврата"),
+                ]
+            )
+            select_menu.callback = self.price_callback
+            view.add_item(select_menu)
+            await inter.response.send_message("", view=view)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /price")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при получении списка цен", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при получении списка цен: {e}")
 
     async def price_callback(self, inter):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
@@ -364,38 +384,34 @@ class Settings(commands.Cog):
 
     @commands.slash_command(description="[DEV] - Просмотр статистики по датам")
     async def date_stats(self, inter):
-        if not self.check_staff_permissions(inter, "dev"):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-        if inter.guild is not None:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
-        else:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE user_id = ?", (inter.author.id,))
-        settings = self.db.cursor.fetchone()
-        if settings is not None:
-            self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
-
-        self.db.cursor.execute(""" 
-            SELECT DISTINCT date FROM date_stats
-            ORDER BY date DESC
-        """)
-        dates = self.db.cursor.fetchall()
-
-        options = []
-        for date in dates:
-            date_str = date[0]
-            date_str = date_str.replace('-', '.') 
-            options.append(disnake.SelectOption(label=date_str, value=date_str))
-
-        view = disnake.ui.View()
-        select_menu = disnake.ui.Select(
-            placeholder="Выберите дату",
-            custom_id="date_select",
-            options=options
-        )
-        select_menu.callback = self.date_stats_callback
-        view.add_item(select_menu)
-        await inter.response.send_message("Выберите дату", view=view)
+        try:
+            if not self.check_staff_permissions(inter, "dev"):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /date_stats, но не имеет прав")
+                return
+            self.db.cursor.execute("""
+                SELECT DISTINCT date FROM date_stats
+                ORDER BY date DESC
+            """)
+            dates = self.db.cursor.fetchall()
+            options = []
+            for date in dates:
+                date_str = date[0]
+                date_str = date_str.replace('-', '.')
+                options.append(disnake.SelectOption(label=date_str, value=date_str))
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите дату",
+                custom_id="date_select",
+                options=options
+            )
+            select_menu.callback = self.date_stats_callback
+            view.add_item(select_menu)
+            await inter.response.send_message("Выберите дату", view=view)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /date_stats")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при получении списка дат", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при получении списка дат: {e}")
 
     async def date_stats_callback(self, inter):
         date_str = inter.data.values[0]
@@ -419,53 +435,43 @@ class Settings(commands.Cog):
 
     @commands.slash_command(description="[DEV] - Статистика сотрудников")
     async def stats(self, inter):
-        if not self.check_staff_permissions(inter, "dev"):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-        self.page = 1
-        if inter.guild is not None:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
-        else:
-            self.db.cursor.execute("SELECT embed_color FROM settings WHERE user_id = ?", (inter.author.id,))
-        settings = self.db.cursor.fetchone()
-        if settings is not None:
-            self.embed_color = disnake.Color(int(settings[0].lstrip('#'), 16))
-
-        self.db.cursor.execute("SELECT * FROM staff_list")
-        staff_members = self.db.cursor.fetchall()
-                
-        staff_members.sort(key=lambda x: x[5], reverse=True)
-
-        embed = disnake.Embed(
-            title="Статистика сотрудников",
-            description=f"Открыта страница: {self.page} из {len(staff_members) // 5 + 1}",
-            color=self.embed_color
-        )
-
-        start = (self.page - 1) * 5
-        end = self.page * 5
-
-        for i, staff_member in enumerate(staff_members[start:end], start=1):
-            username = staff_member[1]
-            role = staff_member[4]
-            closed_tickets = staff_member[5]
-
-            embed.add_field(
-                name=f"{i}. {username}",
-                value=f"🪪 Роль: {role}\n🎫 Закрытых тикетов: **Секрет**",
-                inline=False
+        try:
+            if not self.check_staff_permissions(inter, "dev"):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /stats, но не имеет прав")
+                return
+            self.page = 1
+            self.db.cursor.execute("SELECT * FROM staff_list")
+            staff_members = self.db.cursor.fetchall()
+            staff_members.sort(key=lambda x: x[5], reverse=True)
+            embed = disnake.Embed(
+                title="Статистика сотрудников",
+                description=f"Открыта страница: {self.page} из {len(staff_members) // 5 + 1}",
+                color=self.embed_color
             )
-
-        view = disnake.ui.View()
-        left_button = disnake.ui.Button(label="⬅️", custom_id="left", style=disnake.ButtonStyle.gray)
-        right_button = disnake.ui.Button(label="➡️", custom_id="right", style=disnake.ButtonStyle.gray)
-        secret_button = disnake.ui.Button(label="Открыть секрет", custom_id="secret", style=disnake.ButtonStyle.red)
-
-        view.add_item(left_button)
-        view.add_item(right_button)
-        view.add_item(secret_button)
-
-        self.stats_message = await inter.response.send_message(embed=embed, view=view)
+            start = (self.page - 1) * 5
+            end = self.page * 5
+            for i, staff_member in enumerate(staff_members[start:end], start=1):
+                username = staff_member[1]
+                role = staff_member[4]
+                closed_tickets = staff_member[5]
+                embed.add_field(
+                    name=f"{i}. {username}",
+                    value=f"Роль: {role}\nЗакрытых тикетов: **Секрет**",
+                    inline=False
+                )
+            view = disnake.ui.View()
+            left_button = disnake.ui.Button(label="⬅️", custom_id="left", style=disnake.ButtonStyle.gray)
+            right_button = disnake.ui.Button(label="➡️", custom_id="right", style=disnake.ButtonStyle.gray)
+            secret_button = disnake.ui.Button(label="Открыть секрет", custom_id="secret", style=disnake.ButtonStyle.red)
+            view.add_item(left_button)
+            view.add_item(right_button)
+            view.add_item(secret_button)
+            self.stats_message = await inter.response.send_message(embed=embed, view=view)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /stats")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при получении статистики сотрудников", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при получении статистики сотрудников: {e}")
 
     @commands.Cog.listener()
     async def on_button_click(self, inter):
@@ -614,6 +620,14 @@ class Settings(commands.Cog):
                         style=disnake.TextInputStyle.short,
                     )
                 ),
+                disnake.ui.ActionRow(
+                    disnake.ui.TextInput(
+                        label="Логгер (1 - включен, 0 - выключен)",
+                        placeholder="1",
+                        custom_id="logging",
+                        style=disnake.TextInputStyle.short,
+                    )
+                ),
             ],
         )
 
@@ -626,6 +640,7 @@ class Settings(commands.Cog):
             category_id = int(inter.text_values['category_id'])
             channel_id = int(inter.text_values['channel_id'])
             primetime = str(inter.text_values['primetime'])
+            logging_status = int(inter.text_values['logging'])
 
             category = inter.guild.get_channel(category_id)
             channel = inter.guild.get_channel(channel_id)
@@ -645,14 +660,14 @@ class Settings(commands.Cog):
 
             if existing_settings is not None:
                 self.db.cursor.execute(""" 
-                    UPDATE settings SET embed_color = ?, category_id = ?, ticket_channel_id = ?, primetime = ?
+                    UPDATE settings SET embed_color = ?, category_id = ?, ticket_channel_id = ?, primetime = ?, logging = ?
                     WHERE guild_id = ?
-                """, (color, category_id, channel_id, primetime, inter.guild.id))
+                """, (color, category_id, channel_id, primetime, logging_status, inter.guild.id))
             else:
                 self.db.cursor.execute(""" 
-                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (inter.guild.id, color, category_id, channel_id, primetime))
+                    INSERT INTO settings (guild_id, embed_color, category_id, ticket_channel_id, primetime, logging)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (inter.guild.id, color, category_id, channel_id, primetime, logging_status))
 
             self.db.conn.commit()
 
@@ -660,7 +675,8 @@ class Settings(commands.Cog):
                 embed=disnake.Embed(title="Настройки сохранены", description=f"Цвет боковой полоски: {color}\n"
                 f"Айди категории тикетов: {category_id}\n"
                 f"Айди канала тикетов: {channel_id}\n"
-                f"Рабочее время: {primetime}", color=self.embed_color),
+                f"Рабочее время: {primetime}\n"
+                f"Логгер: {'Включен' if logging_status == 1 else 'Выключен'}", color=self.embed_color),
                 ephemeral=True
             )
 
