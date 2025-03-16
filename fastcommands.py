@@ -1,4 +1,5 @@
 import disnake, random, logging
+from datetime import datetime as dt
 from disnake.ext import commands
 from database import Database
 
@@ -14,8 +15,24 @@ class FastCommand(commands.Cog):
     async def on_message(self, message):
         if message.author == self.bot.user:
             return
-
-        if message.content.startswith('a.marry <@1275300681535983646>'):
+        
+        def calculate_marriage_time():
+            start_date = dt(2024, 8, 17, 0, 41)
+            current_date = dt.now()
+            delta = current_date - start_date
+            days = delta.days
+            hours = delta.seconds // 3600
+            minutes = (delta.seconds // 60) % 60
+            seconds = delta.seconds % 60
+            return f"{days} дней {hours} часов {minutes} минут {seconds} секунд"
+        
+        if message.author.id == 444574234564362250 and message.content.startswith(f"a.marry {message.guild.get_member(self.bot.user.id).mention}"):
+            marriage_time = calculate_marriage_time()
+            embed = disnake.Embed(title="Отношения", description=f"Твоя вторая половинка: **{self.bot.user.name}**\nВ браке: **{marriage_time}**", color=None)
+            embed.set_thumbnail(url=message.author.avatar.url)
+            embed.set_footer(text=f"{message.guild.name} • {dt.now().strftime('%d.%m.%Y %H:%M')}")
+            await message.channel.send(embed=embed)
+        elif message.content.startswith(f"a.marry {message.guild.get_member(self.bot.user.id).mention}"):
             answers = [
                 "Это так сложно... прости я вынуждена отказаться 😔",
                 "Я занята так-то эмм... 😒",
