@@ -28,7 +28,8 @@ class FastCommand(commands.Cog):
         
         if message.author.id == 444574234564362250 and message.content.startswith(f"a.marry {message.guild.get_member(self.bot.user.id).mention}"):
             marriage_time = calculate_marriage_time()
-            embed = disnake.Embed(title="Отношения", description=f"Твоя вторая половинка: **{self.bot.user.name}**\nВ браке: **{marriage_time}**", color=None)
+            embed = disnake.Embed(title="", description=f"Твоя вторая половинка: **{self.bot.user.name}**\nВ браке: **{marriage_time}**", color=None)
+            embed.set_author(name="Отношения", icon_url="https://images-ext-1.discordapp.net/external/77lMDVf_aAExffQnk8AypZRzPP7Q4hHVZzMYzRbnnNk/https/cdn.discordapp.com/emojis/928628212437778472.png")
             embed.set_thumbnail(url=message.author.avatar.url)
             embed.set_footer(text=f"{message.guild.name} • {dt.now().strftime('%d.%m.%Y %H:%M')}")
             await message.channel.send(embed=embed)
