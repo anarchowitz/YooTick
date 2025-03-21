@@ -143,7 +143,7 @@ class Tickets(commands.Cog):
         embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
         embed.set_thumbnail(url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
 
-        view = disnake.ui.View()
+        view = disnake.ui.View(timeout=None)
         select_menu = disnake.ui.Select(
             placeholder="Выберите тему обращения",
             options=[
@@ -157,6 +157,33 @@ class Tickets(commands.Cog):
 
         async def select_callback(inter):
             theme = inter.data.values[0]
+            self.db.cursor.execute("SELECT * FROM staff_list WHERE user_id = ?", (inter.author.id,))
+            staff = self.db.cursor.fetchone()
+            if staff is not None:
+                self.db.cursor.execute("SELECT closed_tickets FROM staff_list WHERE username = ?", (staff[1],))
+                closed_tickets = self.db.cursor.fetchone()
+                if closed_tickets is not None:
+                    closed_tickets = closed_tickets[0]
+                    self.db.cursor.execute("UPDATE staff_list SET closed_tickets = ? WHERE username = ?", (closed_tickets + 1, staff[1]))
+                    self.db.conn.commit()
+
+                date = datetime.date.today()
+                self.db.cursor.execute(""" 
+                    SELECT * FROM date_stats
+                    WHERE username = ? AND date = ?
+                """, (staff[1], date.strftime("%d.%m.%Y")))
+                existing_stat = self.db.cursor.fetchone()
+                if existing_stat is not None:
+                    self.db.cursor.execute(""" 
+                        UPDATE date_stats SET closed_tickets = ?
+                        WHERE username = ? AND date = ?
+                    """, (existing_stat[3] + 1, staff[1], date.strftime("%d.%m.%Y")))
+                else:
+                    self.db.cursor.execute(""" 
+                        INSERT INTO date_stats (username, date, closed_tickets)
+                        VALUES (?, ?, 1)
+                    """, (staff[1], date.strftime("%d.%m.%Y")))
+                self.db.conn.commit()
             await inter.response.send_modal(Tickets.CreateTicketModal(self.bot, theme))
 
         select_menu.callback = select_callback
@@ -353,6 +380,9 @@ class Tickets(commands.Cog):
             try:
                 await inter.message.delete()
                 logger.info(f"[TICKETS] Пользователь {inter.author.name} подтвердил закрытие тикета {inter.channel.name}")
+                self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                embed_color = self.db.cursor.fetchone()[0]
+                embed_color = disnake.Color(int(embed_color.lstrip('#'), 16))
                 self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                 taken_username = self.db.cursor.fetchone()
                 if taken_username is None or taken_username[0] is None:
