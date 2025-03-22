@@ -46,7 +46,6 @@ async def on_ready():
         db.conn.commit()
         print("Импортед дефаулт фаст коммандс епта")
 
-
 if __name__ == "__main__":
     logger = logging.getLogger('bot')
     logger.setLevel(logging.ERROR)

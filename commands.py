@@ -1,4 +1,4 @@
-import disnake, datetime, logging
+import disnake, datetime, logging, random, asyncio
 from math import ceil
 from disnake.ext import commands
 from database import Database
@@ -26,6 +26,34 @@ class Settings(commands.Cog):
             return False
         
         return True
+
+    @commands.slash_command(description="Помощник в выборе. Использование: /choicehelper <вариант1> <вариант2>.. - выберите один из вариантов")
+    async def choicehelper(self, inter, *, options: str):
+        try:
+            options_list = options.split()
+            if len(options_list) < 2:
+                await inter.response.send_message("Нужно указать хотя бы 2 варианта", ephemeral=True)
+                return
+            
+            animation = [
+                "🎲 Выбираем вариант...\n",
+                "🔄 Варианты перемешиваются...\n",
+                "😈 Подкручиваем самый ужасный исход для вас!\n",
+                "🎉 Выбор сделан!\n",
+            ]
+            
+            await inter.response.send_message(animation[0])
+            message = await inter.original_response()
+            for i in range(1, len(animation)):
+                await asyncio.sleep(0.65)
+                await message.edit(content=animation[i])
+            
+            chosen_option = random.choice(options_list)
+            chance = 100 / len(options_list)
+            await message.edit(content=f"🎉 Выбрано: **{chosen_option}** 🎊\nШанс выпадения: **{chance}%**\n\n📋 Варианты выпадения:\n" + '\n'.join([f"{i+1}. {option}" for i, option in enumerate(options_list)]))
+        except Exception as e:
+            await inter.followup.send("Ошибка при выборе варианта", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при выборе варианта: {e}")
 
     @commands.slash_command(description="Показать пинг обработки бота")
     async def ping(self, inter):

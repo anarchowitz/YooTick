@@ -293,10 +293,10 @@ class Tickets(commands.Cog):
     @commands.Cog.listener()
     async def on_button_click(self, inter):
         if inter.data.custom_id == "take_ticket":
-            await inter.response.defer()
-            try:
-                logger.info(f"[TICKETS] Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
-                async with self.lock:
+            async with self.lock:
+                await inter.response.defer()
+                try:
+                    logger.info(f"[TICKETS] Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
                     if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                         await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                         return
@@ -350,8 +350,8 @@ class Tickets(commands.Cog):
                         ticket_name = taken_username
                     new_name = f"{ticket_name}-ticket-{thread_number}"
                     await inter.channel.edit(name=new_name)
-            except Exception as e:
-                logger.error(f"Ошибка при взятии тикета {inter.channel.name}: {e}")
+                except Exception as e:
+                    logger.error(f"Ошибка при взятии тикета {inter.channel.name}: {e}")
 
         if inter.data.custom_id == "close_ticket":
             try:
@@ -493,6 +493,9 @@ class Tickets(commands.Cog):
                         ])
 
                     async def callback(self, inter):
+                        self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                        embed_color = self.db.cursor.fetchone()[0]
+                        embed_color = disnake.Color(int(embed_color.lstrip('#'), 16))
                         embed1 = disnake.Embed(
                             description=f"Обращение было закрыто - {inter.user.mention}",
                             color=0xF0C43F
