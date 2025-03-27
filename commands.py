@@ -99,9 +99,9 @@ class Settings(commands.Cog):
                 self.db.cursor.execute("INSERT INTO settings (guild_id, status) VALUES (?, ?)", (inter.guild.id, value))
             self.db.conn.commit()
             if value == 0:
-                await inter.response.send_message("Тех.работы завершены. Доступ к базе данных разрешен.")
+                await inter.response.send_message("Тех.работы завершены. Доступ к некоторым действиям разрешен.")
             elif value == 1:
-                await inter.response.send_message("Тех.работы проводятся. Доступ к базе данных запрещен.")
+                await inter.response.send_message("Тех.работы проводятся. Доступ к некоторым действиям запрещен.")
         except Exception as e:
             await inter.followup.send("Ошибка при установке статуса тех.работ")
 
