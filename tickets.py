@@ -214,6 +214,11 @@ class Tickets(commands.Cog):
             ])
 
         async def callback(self, inter):
+            self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
+            status = self.db.cursor.fetchone()
+            if status is not None and status[0] == 1:
+                await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте создать обращение **позже**. ⚠️", ephemeral=True)
+                return
             await inter.response.defer(ephemeral=True)
             description = inter.text_values['description_input']
             if len(description) < 3:
@@ -294,12 +299,20 @@ class Tickets(commands.Cog):
     async def on_button_click(self, inter):
         if inter.data.custom_id == "take_ticket":
             async with self.lock:
-                await inter.response.defer()
                 try:
                     logger.info(f"[TICKETS] Пользователь {inter.author.name} пытается взять тикет {inter.channel.name}")
                     if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                         await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                         return
+
+                    self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                    status = self.db.cursor.fetchone()
+                    if status is not None and status[0] == 1:
+                        await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте взять обращение **позже**. ⚠️", ephemeral=True)
+                        return
+
+                    # Добавить defer() перед изменением исходного сообщения
+                    await inter.response.defer()
 
                     self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
                     embed_color = self.db.cursor.fetchone()[0]
@@ -355,6 +368,11 @@ class Tickets(commands.Cog):
 
         if inter.data.custom_id == "close_ticket":
             try:
+                self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                status = self.db.cursor.fetchone()
+                if status is not None and status[0] == 1:
+                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть обращение **позже**. ⚠️", ephemeral=True)
+                    return
                 logger.info(f"[TICKETS] Пользователь {inter.author.name} пытается закрыть тикет {inter.channel.name}")
                 confirmation_embed = disnake.Embed(
                     title="Подтверждение",
@@ -378,6 +396,12 @@ class Tickets(commands.Cog):
 
         if inter.data.custom_id == "confirm_close_ticket":
             try:
+                self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                status = self.db.cursor.fetchone()
+                if status is not None and status[0] == 1:
+                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть обращение **позже**. ⚠️", ephemeral=True)
+                    return
+                
                 await inter.message.delete()
                 logger.info(f"[TICKETS] Пользователь {inter.author.name} подтвердил закрытие тикета {inter.channel.name}")
                 self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
@@ -466,9 +490,16 @@ class Tickets(commands.Cog):
 
         if inter.data.custom_id == "confirm_close_with_reason_ticket":
             try:
+                
                 logger.info(f"[TICKETS] Пользователь {inter.author.name} подтвердил закрытие тикета с причиной {inter.channel.name}")
                 if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                     await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                    return
+
+                self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
+                status = self.db.cursor.fetchone()
+                if status is not None and status[0] == 1:
+                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть с причиной обращение **позже**. ⚠️", ephemeral=True)
                     return
 
                 self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
@@ -574,6 +605,12 @@ class Tickets(commands.Cog):
 
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            
+            self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
+            status = self.db.cursor.fetchone()
+            if status is not None and status[0] == 1:
+                await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте передать обращение **позже**. ⚠️", ephemeral=True)
                 return
 
             self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
