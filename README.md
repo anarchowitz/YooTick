@@ -86,7 +86,7 @@ default_commands = [
 ```
 ## 📄 Лицензия
 
-Проект распространяется под лицензией [MIT License](https://github.com/Anarchowitz/YooTickPrivate/blob/main/LICENSE).
+Проект распространяется под лицензией [MIT License](https://github.com/Anarchowitz/YooTick/blob/main/LICENSE).
 При поддержке [yooma.su](https://yooma.su/ru)
 
 # [![Star on GitHub](https://img.shields.io/github/stars/anarchowitz/YooTick.svg?style=social)](https://github.com/anarchowitz/YooTick/stargazers)
