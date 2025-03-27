@@ -50,7 +50,7 @@ class Settings(commands.Cog):
             
             chosen_option = random.choice(options_list)
             chance = 100 / len(options_list)
-            await message.edit(content=f"🎉 Выбрано: **{chosen_option}** 🎊\nШанс выпадения: **{chance}%**\n\n📋 Варианты выпадения:\n" + '\n'.join([f"{i+1}. {option}" for i, option in enumerate(options_list)]))
+            await message.edit(content=f"🎉 Выбрано: **{chosen_option}** 🎊\nШанс выпадения: **{chance}%**")
         except Exception as e:
             await inter.followup.send("Ошибка при выборе варианта", ephemeral=True)
             logger.error(f"[COMMANDS] Ошибка при выборе варианта: {e}")
@@ -82,16 +82,14 @@ class Settings(commands.Cog):
             await inter.response.send_message("Ошибка при получении списка быстрых команд", ephemeral=True)
             logger.error(f"[COMMANDS] Ошибка при получении списка быстрых команд: {e}")
 
-    @commands.slash_command(description="[DEV] - Установить статус тех.работ тикетов")
+    @commands.slash_command(description="[DEV] - Установить статус тех.работ")
     async def status(self, inter, value: int):
         try:
             if not self.check_staff_permissions(inter, "dev"):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /status, но не имеет прав")
                 return
             if value not in [0, 1]:
                 await inter.response.send_message("Неправильное значение. Должно быть 0 или 1", ephemeral=True)
-                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /status с неправильным значением")
                 return
             self.db.cursor.execute("SELECT * FROM settings WHERE guild_id = ?", (inter.guild.id,))
             existing_settings = self.db.cursor.fetchone()
@@ -100,11 +98,13 @@ class Settings(commands.Cog):
             else:
                 self.db.cursor.execute("INSERT INTO settings (guild_id, status) VALUES (?, ?)", (inter.guild.id, value))
             self.db.conn.commit()
-            await inter.response.send_message(f"Статус тех.работ установлен на {value}", ephemeral=True)
-            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /status")
+            if value == 0:
+                await inter.response.send_message("Тех.работы завершены. Доступ к базе данных разрешен.")
+            elif value == 1:
+                await inter.response.send_message("Тех.работы проводятся. Доступ к базе данных запрещен.")
         except Exception as e:
-            await inter.response.send_message("Ошибка при установке статуса тех.работ", ephemeral=True)
-            logger.error(f"[COMMANDS] Ошибка при установке статуса тех.работ: {e}")
+            await inter.followup.send("Ошибка при установке статуса тех.работ")
+
 
     @commands.slash_command(description="[STAFF] - Удалить обращение из базы данных")
     async def ticket_fix(self, inter, username: str):
