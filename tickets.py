@@ -208,7 +208,8 @@ class Tickets(commands.Cog):
                         placeholder="Введите краткое описание обращения",
                         style=disnake.TextInputStyle.short,
                         custom_id="description_input",
-                        min_length=3
+                        min_length=3,
+                        max_length=100
                     )
                 )
             ])
