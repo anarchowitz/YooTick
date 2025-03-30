@@ -312,8 +312,13 @@ class Tickets(commands.Cog):
                         await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте взять обращение **позже**. ⚠️", ephemeral=True)
                         return
 
-                    # Добавить defer() перед изменением исходного сообщения
                     await inter.response.defer()
+
+                    self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                    taken_ticket = self.db.cursor.fetchone()
+                    if taken_ticket is not None and taken_ticket[0] is not None:
+                        await inter.edit_original_response(content="Это обращение уже взято!")
+                        return
 
                     self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
                     embed_color = self.db.cursor.fetchone()[0]
@@ -340,12 +345,6 @@ class Tickets(commands.Cog):
                     view.add_item(transfer_button)
 
                     await inter.edit_original_response(embed=ticket_embed, view=view)
-
-                    self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                    taken_ticket = self.db.cursor.fetchone()
-                    if taken_ticket is not None and taken_ticket[0] is not None:
-                        await inter.edit_original_response(content="Этот обращение уже взят!")
-                        return
 
                     self.db.cursor.execute("SELECT thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                     thread_number = self.db.cursor.fetchone()[0]
