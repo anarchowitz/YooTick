@@ -18,6 +18,38 @@ class FastCommand(commands.Cog):
         if message.author == self.bot.user:
             return
         
+        if isinstance(message.channel, disnake.VoiceChannel):
+            logger.info(f"[FCOMMAND] Сообщение из голосового канала: {message.content}")
+            if self.moderator.check_message(message):
+                await message.delete()
+                await message.channel.send("**[Anti-AD]**  Пользователь был **наказан** из-за подозрения в спаме!", delete_after=5)
+                logger.info(f"[FCOMMAND] Сообщение {message.id} удалено из-за подозрения в спаме!")
+                embed = disnake.Embed(
+                    title=" Нарушение правил чата",
+                    description="Ваше сообщение было распознано как **реклама/спам**.",
+                    color=0xFF3030
+                )
+                embed.add_field(
+                    name=" Принятая мера",
+                    value="```Вам выдан мут на 1 день (24 часа)```",
+                    inline=False
+                )
+                embed.add_field(
+                    name="ℹ Что делать?",
+                    value="• Если это ошибка - обратитесь к модерации\n• Ожидайте окончания наказания",
+                    inline=False
+                )
+                embed.set_footer(text="Пожалуйста, соблюдайте правила нашего сообщества")
+                embed.set_author(name='Yooma Anti-AD', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                try:
+                    await message.author.send(embed=embed)
+                except disnake.HTTPException as e:
+                    if e.status == 403:
+                        logger.error(f"[FCOMMAND] Не удалось отправить сообщение пользователю {message.author.id} из-за блокировки личных сообщений")
+                await message.author.timeout(duration=86400, reason="[Anti-AD] - Detected spamming")
+                channel = await self.bot.fetch_channel(1090347336145838242)
+                await channel.send(f"Пользователь {message.author.mention} получил таймаут на 1 день за спам!\nСообщение: ```{message.content}```")
+
         def calculate_marriage_time():
             start_date = dt(2024, 8, 17, 0, 41)
             current_date = dt.now()
@@ -66,36 +98,6 @@ class FastCommand(commands.Cog):
                 logger.info(f"[FCOMMAND] Быстрая команда - '{command}' использована пользователем {message.author.name}")
             else:
                 logger.info(f"[FCOMMAND] Неизвестная команда '{command}' использована пользователем {message.author.name}")
-        
-        if self.moderator.check_message(message.content):
-            await message.delete()
-            await message.channel.send("**[Anti-AD]**  Пользователь был **наказан** из-за подозрения в спаме!", delete_after=5)
-            logger.info(f"[FCOMMAND] Сообщение {message.id} удалено из-за подозрения в спаме!")
-            embed = disnake.Embed(
-                title="🔒 Нарушение правил чата",
-                description="Ваше сообщение было распознано как **реклама/спам**.",
-                color=0xFF3030
-            )
-            embed.add_field(
-                name="🎯 Принятая мера",
-                value="```Вам выдан мут на 1 день (24 часа)```",
-                inline=False
-            )
-            embed.add_field(
-                name="ℹ Что делать?",
-                value="• Если это ошибка - обратитесь к модерации\n• Ожидайте окончания наказания",
-                inline=False
-            )
-            embed.set_footer(text="Пожалуйста, соблюдайте правила нашего сообщества")
-            embed.set_author(name='Yooma Anti-AD', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-            try:
-                await message.author.send(embed=embed)
-            except disnake.HTTPException as e:
-                if e.status == 403:
-                    logger.error(f"[FCOMMAND] Не удалось отправить сообщение пользователю {message.author.id} из-за блокировки личных сообщений")
-            await message.author.timeout(duration=86400, reason="[Anti-AD] - Detected spamming")
-            channel = await self.bot.fetch_channel(1090347336145838242)
-            await channel.send(f"Пользователь {message.author.mention} получил таймаут на 1 день за спам!\nСообщение: ```{message.content}```")
 
 def setupfastcommands(bot):
     bot.add_cog(FastCommand(bot))
