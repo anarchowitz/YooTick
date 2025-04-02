@@ -1,4 +1,4 @@
-import re
+import re, disnake
 from database import Database
 
 class Moderator:
@@ -23,16 +23,17 @@ class Moderator:
         ]
         self.patterns = [re.compile(keyword, re.IGNORECASE) for keyword in self.keywords]
 
-    def check_message(self, message, user_id):
-        self.db.cursor.execute("SELECT * FROM staff_list WHERE user_id = ?", (user_id,))
-        staff_member = self.db.cursor.fetchone()
-        if staff_member is not None:
-            return False
+    def check_message(self, message):
+        if isinstance(message.channel, disnake.VoiceChannel) or message.channel.nsfw:
+            self.db.cursor.execute("SELECT * FROM staff_list WHERE user_id = ?", (message.author.id,))
+            staff_member = self.db.cursor.fetchone()
+            if staff_member is not None:
+                return False
 
-        for pattern in self.patterns:
-            if pattern.search(message):
-                for domain in self.allowed_domains:
-                    if domain in message:
-                        return False
-                return True
-        return False
+            for pattern in self.patterns:
+                if pattern.search(message.content):
+                    for domain in self.allowed_domains:
+                        if domain in message.content:
+                            return False
+                    return True
+            return False
