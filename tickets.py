@@ -317,7 +317,7 @@ class Tickets(commands.Cog):
                     self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
                     taken_ticket = self.db.cursor.fetchone()
                     if taken_ticket is not None and taken_ticket[0] is not None:
-                        await inter.edit_original_response(content="Это обращение уже взято!")
+                        await inter.response.send_message("Это обращение уже взято!", ephemeral=True)
                         return
 
                     self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
