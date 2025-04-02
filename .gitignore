@@ -4,3 +4,5 @@ __pycache__/database.cpython-313.pyc
 __pycache__/commands.cpython-313.pyc
 yootoken.txt
 yoologger.log
+__pycache__/moderator.cpython-313.pyc
+database.db
