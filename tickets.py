@@ -148,9 +148,9 @@ class Tickets(commands.Cog):
             placeholder="Выберите тему обращения",
             options=[
                 disnake.SelectOption(label="Вопрос", description="Задайте свой вопрос", emoji="❓"),
-                disnake.SelectOption(label="Жалоба", description="Подайте жалобу", emoji="⚠️"),
+                disnake.SelectOption(label="Жалоба", description="Жалоба на нарушение игрока/администратора", emoji="⚠️"),
+                disnake.SelectOption(label="Обжалование", description="Обжалование наказания", emoji="⚖️"),
                 disnake.SelectOption(label="Доп. услуги", description="Докупка/Перенос и другие услуги", emoji="💼"),
-                disnake.SelectOption(label="Предложить", description="Предложить свою идею или улучшение", emoji="💡"),
                 disnake.SelectOption(label="Другое", description="Остальные вопросы", emoji="🤔")
             ]
         )
@@ -214,6 +214,20 @@ class Tickets(commands.Cog):
                 )
             ])
 
+            if self.theme in ["Доп. услуги", "Обжалование"]:
+                self.components.append(
+                    disnake.ui.ActionRow(
+                        disnake.ui.TextInput(
+                            label="Ссылка на профиль",
+                            placeholder="Введите ссылку на профиль",
+                            style=disnake.TextInputStyle.short,
+                            custom_id="profile_link_input",
+                            min_length=3,
+                            max_length=100
+                        )
+                    )
+                )
+
         async def callback(self, inter):
             self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
             status = self.db.cursor.fetchone()
@@ -225,6 +239,12 @@ class Tickets(commands.Cog):
             if len(description) < 3:
                 await inter.response.send_message("Минимальная длина ввода - 3 символа", ephemeral=True)
                 return
+
+            if self.theme in ["Доп. услуги", "Обжалование"]:
+                profile_link = inter.text_values.get('profile_link_input', '')
+                if len(profile_link) < 3:
+                    await inter.response.send_message("Минимальная длина ввода ссылки на профиль - 3 символа", ephemeral=True)
+                    return
 
             self.db.cursor.execute("SELECT counter_tickets FROM settings WHERE guild_id = ?", (inter.guild.id,))
             counter_tickets = self.db.cursor.fetchone()[0]
@@ -292,6 +312,8 @@ class Tickets(commands.Cog):
                     pass
 
             info_embed = disnake.Embed(title=f"Краткая суть обращения: {self.theme}", description=description, color=0xF0C43F)
+            if self.theme in ["Доп. услуги", "Обжалование"]:
+                info_embed.add_field(name="Ссылка на профиль", value=profile_link, inline=False)
             await thread.send(embed=info_embed)
 
             await inter.followup.send(rf":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True)
