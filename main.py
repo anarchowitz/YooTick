@@ -48,6 +48,8 @@ async def on_ready():
         )
         db.conn.commit()
         print("Импортед дефаулт фаст коммандс епта")
+    channel = await bot.fetch_channel(1090347336145838242)
+    await channel.send(f"started!")
 
 if __name__ == "__main__":
     logger = logging.getLogger('bot')
