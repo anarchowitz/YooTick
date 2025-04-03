@@ -15,7 +15,13 @@ class Moderator:
             "free steam",
             "discord link",
             "server invite",
-            "join now"
+            "join now",
+            "onlyfans leaks",
+            "personal gift",
+            "click here for nsfw content",
+            "scan this qr code",
+            "get exclusive nsfw content",
+            "free giveaway"
         ]
         self.allowed_domains = [
             "discord.gg",
@@ -24,7 +30,7 @@ class Moderator:
         self.patterns = [re.compile(keyword, re.IGNORECASE) for keyword in self.keywords]
 
     def check_message(self, message):
-        if isinstance(message.channel, disnake.VoiceChannel) or message.channel.nsfw:
+        if isinstance(message.channel, (disnake.TextChannel, disnake.VoiceChannel, disnake.NSFWLevel)):
             self.db.cursor.execute("SELECT * FROM staff_list WHERE user_id = ?", (message.author.id,))
             staff_member = self.db.cursor.fetchone()
             if staff_member is not None:
