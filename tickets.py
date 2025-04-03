@@ -208,7 +208,7 @@ class Tickets(commands.Cog):
                         placeholder="Введите краткое описание обращения",
                         style=disnake.TextInputStyle.short,
                         custom_id="description_input",
-                        min_length=3,
+                        min_length=10,
                         max_length=100
                     )
                 )
@@ -222,7 +222,7 @@ class Tickets(commands.Cog):
                             placeholder="Введите ссылку на профиль",
                             style=disnake.TextInputStyle.short,
                             custom_id="profile_link_input",
-                            min_length=3,
+                            min_length=28,
                             max_length=100
                         )
                     )
@@ -236,14 +236,22 @@ class Tickets(commands.Cog):
                 return
             await inter.response.defer(ephemeral=True)
             description = inter.text_values['description_input']
-            if len(description) < 3:
-                await inter.response.send_message("Минимальная длина ввода - 3 символа", ephemeral=True)
-                return
 
             if self.theme in ["Доп. услуги", "Обжалование"]:
-                profile_link = inter.text_values.get('profile_link_input', '')
-                if len(profile_link) < 3:
-                    await inter.response.send_message("Минимальная длина ввода ссылки на профиль - 3 символа", ephemeral=True)
+                profile_link = inter.text_values['profile_link_input']
+
+                profiles_links = [
+                    "https://yooma.su/ru/profile/",
+                    "https://yooma.su/en/profile/",
+                    "https://steamcommunity.com/profiles/",
+                    "https://steamcommunity.com/id/"
+                ]
+
+                for profile in profiles_links:
+                    if profile_link.startswith(profile):
+                        break
+                else:
+                    await inter.response.send_message("⛔ \ **Неправильно** введена ссылка на профиль. Пример: https://yooma.su/ru/profile/admin", ephemeral=True)
                     return
 
             self.db.cursor.execute("SELECT counter_tickets FROM settings WHERE guild_id = ?", (inter.guild.id,))
