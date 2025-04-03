@@ -568,7 +568,7 @@ class Settings(commands.Cog):
                     )
 
                 await inter.message.edit(embed=embed)
-                await inter.response.send_message("Страница обновлена", ephemeral=True)
+                await inter.response.defer()
 
         elif inter.data.custom_id == "right":
             if not self.check_staff_permissions(inter, "dev"):
@@ -600,7 +600,7 @@ class Settings(commands.Cog):
                 )
 
             await inter.message.edit(embed=embed)
-            await inter.response.send_message("Страница обновлена", ephemeral=True)
+            await inter.response.defer()
 
         elif inter.data.custom_id == "secret":
             if not self.check_staff_permissions(inter, "dev"):
@@ -634,7 +634,7 @@ class Settings(commands.Cog):
                 await self.stats_message.edit(embed=embed)
             else:
                 await inter.message.edit(embed=embed)
-            await inter.response.send_message("Показал секретик, уххх <3", ephemeral=True)
+            await inter.response.defer()
 
 
 
