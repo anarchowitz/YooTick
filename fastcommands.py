@@ -46,7 +46,9 @@ class FastCommand(commands.Cog):
                 if e.status == 403:
                     logger.error(f"[FCOMMAND] Не удалось отправить сообщение пользователю {message.author.id} из-за блокировки личных сообщений")
             await message.author.timeout(duration=86400, reason="[Anti-AD] - Detected spamming")
-            channel = await self.bot.fetch_channel(1090347336145838242)
+            self.db.cursor.execute("SELECT admin_channel_id FROM settings")
+            admin_channel_id = self.db.cursor.fetchone()[0]
+            channel = await self.bot.fetch_channel(admin_channel_id)
             await channel.send(f"Пользователь {message.author.mention} получил таймаут на 1 день за спам!\nСообщение: ```{message.content}```")
 
         def calculate_marriage_time():

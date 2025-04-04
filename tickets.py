@@ -234,6 +234,7 @@ class Tickets(commands.Cog):
             if status is not None and status[0] == 1:
                 await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте создать обращение **позже**. ⚠️", ephemeral=True)
                 return
+
             await inter.response.defer(ephemeral=True)
             description = inter.text_values['description_input']
 
@@ -251,7 +252,7 @@ class Tickets(commands.Cog):
                     if profile_link.startswith(profile):
                         break
                 else:
-                    await inter.response.send_message("⛔ \ **Неправильно** введена ссылка на профиль. Пример: https://yooma.su/ru/profile/admin", ephemeral=True)
+                    await inter.followup.send("⛔ \ **Неправильно** введена ссылка на профиль. Пример: https://yooma.su/ru/profile/admin", ephemeral=True)
                     return
 
             self.db.cursor.execute("SELECT counter_tickets FROM settings WHERE guild_id = ?", (inter.guild.id,))
