@@ -18,6 +18,7 @@ class Database:
                 guild_id INTEGER,
                 user_id INTEGER,
                 embed_color TEXT,
+                admin_channel_id INTEGER,
                 category_id INTEGER,
                 ticket_channel_id INTEGER,
                 counter_tickets INTEGER DEFAULT 0,
