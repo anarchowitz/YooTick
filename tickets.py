@@ -1,4 +1,4 @@
-import disnake, asyncio, datetime, logging
+import disnake, asyncio, datetime, logging, schedule, time
 from disnake.ext import commands
 from database import Database
 
@@ -38,7 +38,7 @@ class Tickets(commands.Cog):
             if current_time >= ban_until:
                 self.db.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (user_id,))
                 self.db.conn.commit()
-
+    
     @commands.slash_command(description="[DEV] - Изменить количество закрытых тикетов сотрудника")
     async def sum(self, inter, username: str, value: str):
         if not self.check_staff_permissions(inter, "dev"):
@@ -133,7 +133,7 @@ class Tickets(commands.Cog):
         embed = disnake.Embed(
             title="Создание обращения в клиентскую поддержку",
             description="Мы настоятельно рекомендуем **подробно** описывать ваши просьбы или проблемы. Это поможет нам оказать вам **быструю и эффективную помощь**.\n\n"
-            "▎Важные моменты:\n"
+            "> ### Важные моменты:\n"
             "- Не открывайте обращения, которые не соответствуют указанной теме или не связаны с описанной проблемой.\n"
             "- Укажите все необходимые данные, чтобы мы могли оперативно решить ваш вопрос.\n"
             "- Соблюдайте правила общения, чтобы избежать блокировки доступа к созданию запросов.\n\n"
@@ -190,7 +190,7 @@ class Tickets(commands.Cog):
         view.add_item(select_menu)
 
         if inter.guild is not None:
-            await channel.send(embed=embed, view=view)
+            await inter.channel.send(embed=embed, view=view)
         else:
             await inter.response.send_message("Эта команда может быть использована только на сервере", ephemeral=True)
             return
@@ -208,7 +208,7 @@ class Tickets(commands.Cog):
                         placeholder="Введите краткое описание обращения",
                         style=disnake.TextInputStyle.short,
                         custom_id="description_input",
-                        min_length=10,
+                        min_length=5,
                         max_length=100
                     )
                 )
@@ -394,6 +394,14 @@ class Tickets(commands.Cog):
                         ticket_name = taken_username
                     new_name = f"{ticket_name}-ticket-{thread_number}"
                     await inter.channel.edit(name=new_name)
+
+                    self.db.cursor.execute("SELECT user_id FROM staff_list WHERE mention = 1 AND user_id != ?", (inter.author.id,))
+                    users_to_remove = self.db.cursor.fetchall()
+                    for user_id in users_to_remove:
+                        user = await self.bot.fetch_user(user_id[0])
+                        if user is not None:
+                            await inter.channel.remove_user(user)
+
                 except Exception as e:
                     logger.error(f"Ошибка при взятии тикета {inter.channel.name}: {e}")
 
