@@ -1,9 +1,10 @@
-import disnake, datetime, logging, os
+import disnake, datetime, logging
 from disnake.ext import commands
 from database import Database
 from tickets import setuptickets
 from commands import setupcommands
 from fastcommands import setupfastcommands
+from notifications import run_schedule
 
 intents = disnake.Intents.default() 
 intents.message_content = True
@@ -13,10 +14,8 @@ bot = commands.Bot(command_prefix="/", intents=intents, activity=disnake.Activit
 
 db = Database("database.db")
 
-
 @bot.event
 async def on_ready():
-    os.system('cls')
     print(f"{bot.user} запущен\n Версия: {version}\n Пользователей: {len(bot.users)}\n Время запуска: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n_________________")
     db.create_settings_table()
     db.create_price_list_table()
@@ -41,7 +40,7 @@ async def on_ready():
             ('заявкамодер', 'Форма о том, как подать заявку на модератора.', 'Для того чтобы подать заявку на модератора, вам нужно выполнить следующие шаги:\n1) Авторизуйтесь на нашем сайте через свой стим профиль.\n2) В правом верхнем углу нажмите на иконку своего профиля.\n3) Перейдите в раздел модерация, где и сможете подать заявку на модератора проекта.\n\nЕсли вы уже являетесь администратором нашего проекта, то перейдите в раздел модерирование, и вы увидите: "заявка на модератора".\n\nНеобходимые условия для становления модератором:\n1) Вы должны быть не младше 16 лет.\n2) На вашем аккаунте должно быть наиграно не менее 50 часов. \n\n-# Отправил - {author}'),
             ('репортгайд', 'Форма о том, как смотреть репорты имея права администратора','Для просмотра репортов, отправляемых игроками на сервере, вам необходим сделать следующее:\n\n1) Справа сверху нажмите на иконку своего профиля.\n2) Перейдите в "Модерирование".\n3) Затем слева у вас будет раздел "тикеты", где вы и сможете просматривать их. \n\n-# Отправил - {author}'),
             ('пополнение', 'Форма о дополнительных способах оплаты через Telegram-бота YoomaPay', 'Помимо стандартных способов оплаты, вы можете пополнить баланс через нашего Telegram-бота с помощью альтернативных методов:\n\n1) Telegram Stars - оплата внутренней валютой Telegram\n2) Криптовалюта (через CryptoBot) - Bitcoin, USDT и другие\n3) FunPay - популярная площадка для игровых платежей\n\nДля оплаты перейдите в нашего бота: https://t.me/yoomapay_bot\n\n-# Отправил - {author}'),
-            ('тикеты', 'Форма о том, как посмотреть меню тикетов на сайте', 'Для просмотра репортов, отправляемых игроками на сервере, вам необходим сделать следующее:\n\n1) Справа сверху нажмите на иконку своего профиля.\n2) Перейдите в "Модерирование".\n3) Затем слева у вас будет раздел "тикеты", где вы и сможете просматривать их')
+            ('тикеты', 'Форма о том, как посмотреть меню тикетов на сайте', 'Для просмотра репортов, отправляемых игроками на сервере, вам необходим сделать следующее:\n\n1) Справа сверху нажмите на иконку своего профиля.\n2) Перейдите в "Модерирование".\n3) Затем слева у вас будет раздел "тикеты", где вы и сможете просматривать их\n\n-# Отправил - {author}'),
         ]
         db.cursor.executemany(
             "INSERT INTO fast_commands (command_name, description, response) VALUES (?, ?, ?)",
@@ -49,10 +48,12 @@ async def on_ready():
         )
         db.conn.commit()
         print("Импортед дефаулт фаст коммандс епта")
-    db.cursor.execute("SELECT admin_channel_id FROM settings")
-    admin_channel_id = db.cursor.fetchone()[0]
-    channel = await bot.fetch_channel(admin_channel_id)
-    await channel.send(f"(re)started!")
+    db.cursor.execute("SELECT dev_channel_id FROM settings")
+    dev_channel_id = db.cursor.fetchone()
+    if dev_channel_id is not None:
+        dev_channel_id = dev_channel_id[0]
+        channel = await bot.fetch_channel(dev_channel_id)
+        await channel.send(f"(re)started!")
 
 if __name__ == "__main__":
     logger = logging.getLogger('bot')
@@ -70,4 +71,5 @@ if __name__ == "__main__":
     setupfastcommands(bot)
     with open('yootoken.txt', 'r') as file:
         token = file.read().strip()
+    bot.loop.create_task(run_schedule(bot))
     bot.run(token)
