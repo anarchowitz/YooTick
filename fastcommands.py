@@ -18,7 +18,6 @@ class FastCommand(commands.Cog):
         if message.author == self.bot.user:
             return
         
-        logger.info(f"[FCOMMAND] Сообщение из голосового канала: {message.content}")
         if self.moderator.check_message(message):
             await message.delete()
             await message.channel.send("**[Anti-AD]**  Пользователь был **наказан** из-за подозрения в спаме!", delete_after=5)
@@ -46,10 +45,12 @@ class FastCommand(commands.Cog):
                 if e.status == 403:
                     logger.error(f"[FCOMMAND] Не удалось отправить сообщение пользователю {message.author.id} из-за блокировки личных сообщений")
             await message.author.timeout(duration=86400, reason="[Anti-AD] - Detected spamming")
-            self.db.cursor.execute("SELECT admin_channel_id FROM settings")
-            admin_channel_id = self.db.cursor.fetchone()[0]
-            channel = await self.bot.fetch_channel(admin_channel_id)
-            await channel.send(f"Пользователь {message.author.mention} получил таймаут на 1 день за спам!\nСообщение: ```{message.content}```")
+            self.db.cursor.execute("SELECT dev_channel_id FROM settings")
+            dev_channel_id = self.db.cursor.fetchone()
+            if dev_channel_id is not None:
+                dev_channel_id = dev_channel_id[0]
+                channel = await self.bot.fetch_channel(dev_channel_id)
+                await channel.send(f"Пользователь {message.author.mention} получил таймаут на 1 день за спам!\nСообщение: ```{message.content}```")
 
         def calculate_marriage_time():
             start_date = dt(2024, 8, 17, 0, 41)
@@ -61,31 +62,6 @@ class FastCommand(commands.Cog):
             seconds = delta.seconds % 60
             return f"{days} дней {hours} часов {minutes} минут {seconds} секунд"
         
-        if message.author.id == 444574234564362250 and message.content.startswith(f"a.marry {message.guild.get_member(self.bot.user.id).mention}"):
-            marriage_time = calculate_marriage_time()
-            embed = disnake.Embed(title="", description=f"Твоя вторая половинка: **{self.bot.user.name}**\nВ браке: **{marriage_time}**", color=None)
-            embed.set_author(name="Отношения", icon_url="https://images-ext-1.discordapp.net/external/77lMDVf_aAExffQnk8AypZRzPP7Q4hHVZzMYzRbnnNk/https/cdn.discordapp.com/emojis/928628212437778472.png")
-            embed.set_thumbnail(url=message.author.avatar.url)
-            embed.set_footer(text=f"{message.guild.name} • {dt.now().strftime('%d.%m.%Y')}")
-            await message.channel.send(embed=embed)
-        elif message.content.startswith(f"a.marry {message.guild.get_member(self.bot.user.id).mention}"):
-            answers = [
-                "Это так сложно... прости я вынуждена отказаться 😔",
-                "Я занята так-то эмм... 😒",
-                "Наша любовь не взаимна... прости.. 💔",
-                "Я не готова к такому большому шагу... 😟",
-                "Мне нужно время подумать... 🤔",
-                "Я не уверена, что мы готовы к браку...  😕",
-                "Ты слишком милый, но я не готова к браку 😊",
-                "Я люблю тебя, но не в этом смысле :worried: 😳",
-                "Мы можем быть друзьями, но не мужем и женой 👫",
-                "Я не готова к такой ответственности 😬",
-                "Мне нужно время подумать о нашей будущем 🤝",
-                "Я не уверена, что мы совместимы 🤔",
-                "Мне кажется, что мы слишком разные 😳",
-                "Я уже занята, мой любимый ревнует.. 😳"
-            ]
-            await message.reply(random.choice(answers))
         if message.content.startswith('.'):
             command = message.content.split()[0][1:].lower()
             
