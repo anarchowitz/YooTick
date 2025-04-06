@@ -668,6 +668,14 @@ class Settings(commands.Cog):
                 ),
                 disnake.ui.ActionRow(
                     disnake.ui.TextInput(
+                        label="Айди канала для разработчиков",
+                        placeholder="1234567890",
+                        custom_id="dev_channel_id",
+                        style=disnake.TextInputStyle.short,
+                    )
+                ),
+                disnake.ui.ActionRow(
+                    disnake.ui.TextInput(
                         label="Айди канала тикетов",
                         placeholder="1234567890",
                         custom_id="channel_id",
