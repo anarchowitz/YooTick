@@ -18,7 +18,7 @@ class Database:
                 guild_id INTEGER,
                 user_id INTEGER,
                 embed_color TEXT,
-                admin_channel_id INTEGER,
+                dev_channel_id INTEGER,
                 category_id INTEGER,
                 ticket_channel_id INTEGER,
                 counter_tickets INTEGER DEFAULT 0,
@@ -53,7 +53,8 @@ class Database:
                 user_id INTEGER,
                 role TEXT,
                 closed_tickets INTEGER,
-                mention INTEGER
+                mention INTEGER,
+                leave INTEGER
             )
         """)
         self.conn.commit()
