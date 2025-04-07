@@ -1,4 +1,4 @@
-import disnake, asyncio, datetime, logging, schedule, time
+import disnake, asyncio, datetime, logging
 from disnake.ext import commands
 from database import Database
 
@@ -394,13 +394,6 @@ class Tickets(commands.Cog):
                         ticket_name = taken_username
                     new_name = f"{ticket_name}-ticket-{thread_number}"
                     await inter.channel.edit(name=new_name)
-
-                    self.db.cursor.execute("SELECT user_id FROM staff_list WHERE mention = 1 AND user_id != ?", (inter.author.id,))
-                    users_to_remove = self.db.cursor.fetchall()
-                    for user_id in users_to_remove:
-                        user = await self.bot.fetch_user(user_id[0])
-                        if user is not None:
-                            await inter.channel.remove_user(user)
 
                 except Exception as e:
                     logger.error(f"Ошибка при взятии тикета {inter.channel.name}: {e}")
