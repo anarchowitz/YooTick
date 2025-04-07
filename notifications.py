@@ -42,8 +42,9 @@ if now > target_time:
     target_time += datetime.timedelta(days=1)
 
 async def run_schedule(bot):
+    global target_time
     while True:
         await asyncio.sleep(1)
         if datetime.datetime.now() >= target_time:
             await job(bot)
-            break
+            target_time += datetime.timedelta(days=1)
