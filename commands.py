@@ -65,6 +65,46 @@ class Settings(commands.Cog):
             await inter.response.send_message("Ошибка при получении пинга", ephemeral=True)
             logger.error(f"[COMMANDS] Ошибка при получении пинга: {e}")
 
+    @commands.slash_command(description="[DEV] - Сообщение настроек для сотрудников")
+    async def staffsettingsmsg(self, inter):
+        if not self.check_staff_permissions(inter, "dev"):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        self.db.cursor.execute("SELECT staff_settings_channel_id FROM settings WHERE guild_id = ?", (inter.guild.id,))
+        staff_settings_channel_id = self.db.cursor.fetchone()
+        if staff_settings_channel_id is None:
+            await inter.response.send_message("Канал для настроек сотрудников не найден!", ephemeral=True)
+            return
+
+        staff_settings_channel_id = staff_settings_channel_id[0]
+        staff_settings_channel = inter.guild.get_channel(staff_settings_channel_id)
+        if staff_settings_channel is None:
+            await inter.response.send_message("Канал для настроек сотрудников не найден!", ephemeral=True)
+            return
+
+        self.db.cursor.execute("SELECT * FROM created_tickets")
+        all_tickets = self.db.cursor.fetchall()
+        self.db.cursor.execute("SELECT * FROM created_tickets WHERE taken_username IS NULL")
+        free_tickets = self.db.cursor.fetchall()
+
+        embed = disnake.Embed(
+            title="YoomaSupport",
+            description=f"Информация по тикетам:\n\nАктивные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n🔄 - Обновить информацию по тикетам\n🔔 - Пинг при создании тикета\n📝 - Изменить ник в заголовке тикета\n📊 - Просмотреть ваши активные тикеты",
+            color=self.embed_color
+        )
+        view = disnake.ui.View()
+        update_button = disnake.ui.Button(emoji="🔄", custom_id="update_staff_settings", style=disnake.ButtonStyle.gray)
+        ping_button = disnake.ui.Button(emoji="🔔", custom_id="ping", style=disnake.ButtonStyle.gray)
+        ticket_name_button = disnake.ui.Button(emoji="📝", custom_id="ticket_name", style=disnake.ButtonStyle.gray)
+        active_tickets_button = disnake.ui.Button(emoji="📊", custom_id="active_tickets", style=disnake.ButtonStyle.gray)
+        view.add_item(update_button)
+        view.add_item(ping_button)
+        view.add_item(ticket_name_button)
+        view.add_item(active_tickets_button)
+        await staff_settings_channel.send(embed=embed, view=view)
+        await inter.response.send_message("Сообщение отправлено!", ephemeral=True)
+
     @commands.slash_command(description="[STAFF] - Показать доступные быстрые команды")
     async def fastcommands(self, inter):
         try:
@@ -127,31 +167,6 @@ class Settings(commands.Cog):
         except Exception as e:
             await inter.response.send_message("Ошибка при удалении обращения", ephemeral=True)
             logger.error(f"[COMMANDS] Ошибка при удалении обращения: {e}")
-
-    @commands.slash_command(description="[STAFF] - Установить авто-пинг в тикете")
-    async def ticket_ping(self, inter, value: int):
-        try:
-            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ticket_ping, но не имеет прав")
-                return
-            if value not in [0, 1]:
-                await inter.response.send_message("Неправильное значение. Должно быть 0 или 1", ephemeral=True)
-                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ticket_ping с неправильным значением")
-                return
-            self.db.cursor.execute("SELECT * FROM staff_list WHERE username = ?", (inter.author.name,))
-            staff_member = self.db.cursor.fetchone()
-            if staff_member is None:
-                await inter.response.send_message("Сотрудник не найден!", ephemeral=True)
-                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ticket_ping, но сотрудник не найден")
-                return
-            self.db.cursor.execute("UPDATE staff_list SET mention = ? WHERE username = ?", (value, inter.author.name))
-            self.db.conn.commit()
-            await inter.response.send_message(f"Авто-пинг в тикете установлен на {value}", ephemeral=True)
-            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /ticket_ping")
-        except Exception as e:
-            await inter.response.send_message("Ошибка при установке авто-пинга", ephemeral=True)
-            logger.error(f"[COMMANDS] Ошибка при установке авто-пинга: {e}")
 
     @commands.slash_command(description="[STAFF] - Просмотр цен")
     async def price(self, inter):
@@ -537,6 +552,71 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_button_click(self, inter):
+        if inter.data.custom_id == "update_staff_settings":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            self.db.cursor.execute("SELECT * FROM created_tickets")
+            all_tickets = self.db.cursor.fetchall()
+            self.db.cursor.execute("SELECT * FROM created_tickets WHERE taken_username IS NULL")
+            free_tickets = self.db.cursor.fetchall()
+
+            embed = disnake.Embed(
+                title="YoomaSupport",
+                description=f"Информация по тикетам:\n\nАктивные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n🔄 - Обновить информацию по тикетам\n🔔 - Пинг при создании тикета\n📝 - Изменить ник в заголовке тикета\n📊 - Просмотреть ваши активные тикеты",
+                color=self.embed_color
+            )
+            await inter.message.edit(embed=embed)
+            await inter.response.defer()
+        elif inter.data.custom_id == "ping":
+            self.db.cursor.execute("SELECT mention FROM staff_list WHERE username = ?", (inter.author.name,))
+            mention = self.db.cursor.fetchone()
+            if mention is not None:
+                mention = mention[0]
+                if mention == 0:
+                    self.db.cursor.execute("UPDATE staff_list SET mention = 1 WHERE username = ?", (inter.author.name,))
+                else:
+                    self.db.cursor.execute("UPDATE staff_list SET mention = 0 WHERE username = ?", (inter.author.name,))
+                self.db.conn.commit()
+                await inter.response.send_message(f"Пинг при создании тикета включен для {inter.author.mention}" if mention == 0 else f"Пинг при создании тикета выключен для {inter.author.mention}", ephemeral=True)
+        elif inter.data.custom_id == "ticket_name":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            modal = disnake.ui.Modal(
+                title="Изменить ник тикета",
+                custom_id="ticket_name_modal",
+                components=[
+                    disnake.ui.ActionRow(
+                        disnake.ui.TextInput(
+                            label="Новый ник в заголовке тикета",
+                            placeholder="К примеру: anarcho",
+                            custom_id="ticket_name_input",
+                            style=disnake.TextInputStyle.short,
+                        )
+                    ),
+                ],
+            )
+            await inter.response.send_modal(modal)
+            self.bot.add_modal_handler(self.ticket_name_modal_callback)
+        elif inter.data.custom_id == "active_tickets":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            self.db.cursor.execute("SELECT thread_id FROM created_tickets WHERE taken_username = ?", (inter.author.name,))
+            active_tickets = self.db.cursor.fetchall()
+            if active_tickets:
+                embed = disnake.Embed(
+                    title="Активные тикеты",
+                    description="Список активных тикетов, которые вы взяли:",
+                    color=self.embed_color
+                )
+                for ticket in active_tickets:
+                    embed.add_field(name=f"Тикет", value=f"<#{ticket[0]}>", inline=False)
+                await inter.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await inter.response.send_message("У вас нет активных тикетов", ephemeral=True)
+
         if inter.data.custom_id == "left":
             if not self.check_staff_permissions(inter, "dev"):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -697,6 +777,14 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
+        if inter.data.custom_id == "ticket_name_modal":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            new_ticket_name = inter.text_values['ticket_name_input']
+            self.db.cursor.execute("UPDATE staff_list SET ticket_name = ? WHERE username = ?", (new_ticket_name, inter.author.name))
+            self.db.conn.commit()
+            await inter.response.send_message(f"Ник в заголовке тикета изменен на {new_ticket_name}", ephemeral=True)
         if inter.data.custom_id == "refund_modal":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
