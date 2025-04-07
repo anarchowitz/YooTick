@@ -21,7 +21,11 @@ class Moderator:
             "click here for nsfw content",
             "scan this qr code",
             "get exclusive nsfw content",
-            "free giveaway"
+            "free giveaway",
+            "check what",
+            "join for free",
+            "free porn",
+            "fire porn"
         ]
         self.allowed_domains = [
             "discord.gg",
