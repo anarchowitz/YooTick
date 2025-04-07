@@ -6,3 +6,5 @@ yoologger.log
 __pycache__/moderator.cpython-313.pyc
 __pycache__/main.cpython-313.pyc
 __pycache__/notifications.cpython-313.pyc
+database.db
+yootoken.txt
