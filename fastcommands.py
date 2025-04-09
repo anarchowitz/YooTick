@@ -50,7 +50,7 @@ class FastCommand(commands.Cog):
             if dev_channel_id is not None:
                 dev_channel_id = dev_channel_id[0]
                 channel = await self.bot.fetch_channel(dev_channel_id)
-                await channel.send(f"Пользователь {message.author.mention} получил таймаут на 1 день за спам!\nСообщение: ```{message.content}```")
+                await channel.send(f"Пользователь {message.author.mention} получил таймаут на 1 день за спам!\nКанал: {message.channel.mention}\nСообщение: ```{message.content}```")
 
         def calculate_marriage_time():
             start_date = dt(2024, 8, 17, 0, 41)
