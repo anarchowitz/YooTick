@@ -14,6 +14,7 @@ class Settings(commands.Cog):
         self.stats_message = None
         self.embed_color = disnake.Colour.from_rgb(119, 137, 253)
         self.month_str = None
+        self.last_attempt = {}
 
     @staticmethod
     def check_staff_permissions(inter, required_role):
@@ -27,6 +28,34 @@ class Settings(commands.Cog):
             return False
         
         return True
+
+    @commands.slash_command(description="Бесплатный взлом админки!")
+    async def vzlomadminka(self, inter):
+        try:
+            if inter.author.name in self.last_attempt:
+                last_attempt_time = self.last_attempt[inter.author.name]
+                time_diff = datetime.datetime.now() - last_attempt_time
+                if time_diff < datetime.timedelta(days=1):
+                    await inter.response.send_message("Вы уже пытались взломать админку в течение последних 24 часов", ephemeral=True)
+                    return
+            self.last_attempt[inter.author.name] = datetime.datetime.now()
+            animation = [
+                "🎲 Выбираем вариант...\n",
+                "🔄 Варианты перемешиваются...\n",
+                "😈 Подкручиваем самый ужасный исход для вас!\n",
+                "🎉 Выбор сделан!\n",
+            ]
+            await inter.response.send_message(animation[0])
+            message = await inter.original_response()
+            for i in range(1, len(animation)):
+                await asyncio.sleep(0.65)
+                await message.edit(content=animation[i])
+            await message.edit(content="🚨 Попытка взлома: Неудачна. (95%)")
+            await inter.author.timeout(duration=60, reason="april scam XD")
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} неудачно использовал команду /vzlomadminka")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при попытке взлома админки", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при попытке взлома админки: {e}")
 
     @commands.slash_command(description="Помощник в выборе. Использование: /choicehelper <вариант1> <вариант2>.. - выберите один из вариантов")
     async def choicehelper(self, inter, *, options: str):
@@ -59,11 +88,32 @@ class Settings(commands.Cog):
     @commands.slash_command(description="Показать пинг обработки бота")
     async def ping(self, inter):
         try:
-            await inter.response.send_message(f"Пинг: {self.bot.latency * 1000:.2f}ms", ephemeral=True)
+            await inter.response.send_message(f"Pong: {self.bot.latency * 1000:.2f}ms")
             logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /ping")
         except Exception as e:
             await inter.response.send_message("Ошибка при получении пинга", ephemeral=True)
             logger.error(f"[COMMANDS] Ошибка при получении пинга: {e}")
+
+    @commands.slash_command(description="[STAFF] - Просмотр количества решенных тикетов")
+    async def mytickets(self, inter):
+        try:
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /mytickets, но не имеет прав")
+                return
+            if inter.author.name == "tranquillionz":
+                await inter.response.send_message(f"Решеных тикетов у {inter.author.mention}: {random.randint(53,121)}", ephemeral=True)
+            else:
+                embed = disnake.Embed(
+                    title="Просмотр ваших тикетов",
+                    description="Что бы посмотреть сколько у вас тикетов, купите подписку [YooTick Plus](https://clck.ru/3LCCwU). (Нажав по сообщению YooTick Plus)",
+                    color=self.embed_color
+                )
+                await inter.response.send_message(embed=embed)
+            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /mytickets")
+        except Exception as e:
+            await inter.response.send_message("Ошибка при получении списка тикетов", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при получении списка тикетов: {e}")
 
     @commands.slash_command(description="[DEV] - Сообщение настроек для сотрудников")
     async def staffsettingsmsg(self, inter):
@@ -599,6 +649,7 @@ class Settings(commands.Cog):
             )
             await inter.response.send_modal(modal)
             self.bot.add_modal_handler(self.ticket_name_modal_callback)
+
         elif inter.data.custom_id == "active_tickets":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -805,6 +856,7 @@ class Settings(commands.Cog):
             final_refund = refund + guaranteed_refund
 
             await inter.response.send_message(f"Авто-подсчет возврата: {int(final_refund)} рублей", ephemeral=True)
+
         if inter.data.custom_id == "settings_modal":
             color = inter.text_values['color']
             category_id = int(inter.text_values['category_id'])
