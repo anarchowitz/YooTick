@@ -210,7 +210,7 @@ class Tickets(commands.Cog):
                         style=disnake.TextInputStyle.short,
                         custom_id="description_input",
                         min_length=5,
-                        max_length=100
+                        max_length=350
                     )
                 )
             ])
@@ -224,7 +224,7 @@ class Tickets(commands.Cog):
                             style=disnake.TextInputStyle.short,
                             custom_id="profile_link_input",
                             min_length=28,
-                            max_length=100
+                            max_length=350
                         )
                     )
                 )
