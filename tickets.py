@@ -150,7 +150,8 @@ class Tickets(commands.Cog):
                 disnake.SelectOption(label="Вопрос", description="Задайте свой вопрос", emoji="❓"),
                 disnake.SelectOption(label="Жалоба", description="Жалоба на нарушение игрока/администратора", emoji="⚠️"),
                 disnake.SelectOption(label="Обжалование", description="Обжалование наказания", emoji="⚖️"),
-                disnake.SelectOption(label="Доп. услуги", description="Докупка/Перенос и другие услуги", emoji="💼"),
+                disnake.SelectOption(label="Предложение", description="Предложите вашу идею или улучшение", emoji="💼"),
+                disnake.SelectOption(label="Доп. услуги", description="Докупка/Перенос и другие услуги", emoji="💡"),
                 disnake.SelectOption(label="Другое", description="Остальные вопросы", emoji="🤔")
             ]
         )
