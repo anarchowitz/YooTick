@@ -6,31 +6,34 @@ class Moderator:
     def __init__(self):
         self.db = Database("database.db")
         self.keywords = [
-            r"cybershoke\.net",
-            r"cs2red\.ru",
-            r"onetake-cs2\.ru",
-            r"discord\.com\/invite\/",
-            r"discord\.com\/invites\/",
-            r"discord\.io\/",
-            r"discord\.me\/",
-            r"onlyfans",
-            r"free",
-            r"gift",
-            r"giveaway",
-            r"join",
-            r"server",
-            r"invite",
-            r"link",
-            r"nsfw",
-            r"porn",
-            r"leaks",
-            r"qr code",
-            r"exclusive",
-            r"personal",
-            r"wet",
-            r"fire",
-            r"com server",
-            r"cs2"
+            r"cybershoke\.net", # ad
+            r"cs2red\.ru", # ad
+            r"onetake-cs2\.ru", # ad
+            r"discord\.com\/invite\/", # spam
+            r"discord\.com\/invites\/", # spam
+            r"discord\.io\/", # spam
+            r"discord\.me\/", # spam
+            r"youtude\.net\/", # scam
+            r"onlyfans", # spam
+            r"free", # spam
+            r"gift", # spam
+            r"giveaway", # spam
+            r"join", # spam
+            r"server", # spam
+            r"invite", # spam
+            r"link", # spam
+            r"nsfw", # spam
+            r"porn", # spam
+            r"leaks", # spam
+            r"qr code", # spam
+            r"exclusive", # spam
+            r"personal", # spam
+            r"wet", # spam
+            r"fire", # spam
+            r"com server" # spam
+        ]
+        self.whitelist = [
+            r"tenor\.com"
         ]
         self.patterns = [re.compile(keyword, re.IGNORECASE) for keyword in self.keywords]
 
@@ -40,9 +43,11 @@ class Moderator:
             staff_member = self.db.cursor.fetchone()
             if staff_member is not None:
                 return False
-
             for pattern in self.patterns:
                 if pattern.search(message.content):
+                    for whitelist_pattern in self.whitelist:
+                        if re.compile(whitelist_pattern, re.IGNORECASE).search(message.content):
+                            return False
                     return True
 
             return False
