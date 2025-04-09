@@ -51,16 +51,6 @@ class FastCommand(commands.Cog):
                 dev_channel_id = dev_channel_id[0]
                 channel = await self.bot.fetch_channel(dev_channel_id)
                 await channel.send(f"Пользователь {message.author.mention} получил таймаут на 1 день за спам!\nКанал: {message.channel.mention}\nСообщение: ```{message.content}```")
-
-        def calculate_marriage_time():
-            start_date = dt(2024, 8, 17, 0, 41)
-            current_date = dt.now()
-            delta = current_date - start_date
-            days = delta.days
-            hours = delta.seconds // 3600
-            minutes = (delta.seconds // 60) % 60
-            seconds = delta.seconds % 60
-            return f"{days} дней {hours} часов {minutes} минут {seconds} секунд"
         
         if message.content.startswith('.'):
             command = message.content.split()[0][1:].lower()
