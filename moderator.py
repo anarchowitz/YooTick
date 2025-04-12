@@ -30,10 +30,15 @@ class Moderator:
             r"personal", # spam
             r"wet", # spam
             r"fire", # spam
-            r"com server" # spam
+            r"com server", # spam
+            r"DM me", # spam
+            r"@everyone" # spam / mention all
         ]
         self.whitelist = [
-            r"tenor\.com"
+            r"freeqn", # keyword
+            r"naimfree", # keyword
+            r"tenor\.com", # link
+            r"yooma\.su" # link
         ]
         self.patterns = [re.compile(keyword, re.IGNORECASE) for keyword in self.keywords]
 
