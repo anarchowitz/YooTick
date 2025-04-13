@@ -8,3 +8,6 @@ __pycache__/main.cpython-313.pyc
 __pycache__/notifications.cpython-313.pyc
 database.db
 yootoken.txt
+database.db-journal
+database.db
+__pycache__/freeze.cpython-313.pyc
