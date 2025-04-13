@@ -85,7 +85,7 @@ class Settings(commands.Cog):
             await inter.response.send_message("Ошибка при получении пинга", ephemeral=True)
             logger.error(f"[COMMANDS] Ошибка при получении пинга: {e}")
 
-    @commands.slash_command(description="[DEV] - Сообщение настроек для сотрудников")
+    @commands.slash_command(description="[DEV] - yootick msg")
     async def staffsettingsmsg(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -109,10 +109,11 @@ class Settings(commands.Cog):
         free_tickets = self.db.cursor.fetchall()
 
         embed = disnake.Embed(
-            title="YoomaSupport",
-            description=f"Информация по тикетам:\n\nАктивные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n🔄 - Обновить информацию по тикетам\n🔔 - Пинг при создании тикета\n📝 - Изменить ник в заголовке тикета\n📊 - Просмотреть ваши активные тикеты",
+            title="Помощник по тикетам",
+            description=f"Активные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n🔄 - Обновить информацию по тикетам\n🔔 - Пинг при создании тикета\n📝 - Изменить ник в заголовке тикета\n📊 - Просмотреть ваши активные тикеты",
             color=self.embed_color
         )
+        embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
         view = disnake.ui.View()
         update_button = disnake.ui.Button(emoji="🔄", custom_id="update_staff_settings", style=disnake.ButtonStyle.gray)
         ping_button = disnake.ui.Button(emoji="🔔", custom_id="ping", style=disnake.ButtonStyle.gray)
