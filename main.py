@@ -4,12 +4,13 @@ from database import Database
 from tickets import setuptickets
 from commands import setupcommands
 from fastcommands import setupfastcommands
+from freeze import setupfreeze
 from notifications import run_schedule
 
 intents = disnake.Intents.default() 
 intents.message_content = True
 intents.guilds = True
-version = "3.5.3"
+version = "3.5.5"
 bot = commands.Bot(command_prefix="/", intents=intents, activity=disnake.Activity(type=disnake.ActivityType.listening, name=f"yooma.su | v{version}"))
 
 db = Database("database.db")
@@ -24,6 +25,7 @@ async def on_ready():
     db.create_date_stats_table()
     db.create_fast_commands_table()
     db.create_banned_users_table()
+    db.create_freeze_users_table()
     if not db.cursor.execute("SELECT 1 FROM fast_commands LIMIT 1").fetchone():
         default_commands = [
             ('скинрейв', 'Форма выдачи токенов за регистрацию на скинрейве', 'Что бы мы вам помогли, уточните.\n1) Как давно вы зарегистрировались на SkinRave?\n2) Авторизировались ли вы под своим Steam аккаунтом?\n3) Ссылка на ваш аккаунт на сайте (yooma.su)\n4) Скриншот профиля на SkinRave. \n\n-# Отправил - {author}'),
@@ -69,6 +71,7 @@ if __name__ == "__main__":
     setuptickets(bot)
     setupcommands(bot)
     setupfastcommands(bot)
+    setupfreeze(bot)
     with open('yootoken.txt', 'r') as file:
         token = file.read().strip()
     bot.loop.create_task(run_schedule(bot))
