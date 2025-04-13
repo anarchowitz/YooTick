@@ -22,7 +22,6 @@ class Moderator:
             r"server", # spam
             r"invite", # spam
             r"link", # spam
-            r"nsfw", # spam
             r"porn", # spam
             r"leaks", # spam
             r"qr code", # spam
@@ -37,6 +36,7 @@ class Moderator:
         self.whitelist = [
             r"freeqn", # keyword
             r"naimfree", # keyword
+            r"rawetrip", # keyword
             r"tenor\.com", # link
             r"yooma\.su" # link
         ]
