@@ -104,7 +104,7 @@ class Tickets(commands.Cog):
         except ValueError:
             await inter.response.send_message("Неправильный формат времени", ephemeral=True)
 
-    @commands.slash_command(description="[DEV] - Сообщение создания обращения")
+    @commands.slash_command(description="[DEV] - ticket msg")
     async def ticketmsg(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
             await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
