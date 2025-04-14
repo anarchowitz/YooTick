@@ -10,6 +10,7 @@ class Database:
         self.date_stats = None
         self.fast_commands = None
         self.banned_users = None
+        self.freeze_users = None
 
     def create_settings_table(self):
         self.cursor.execute("""
@@ -20,6 +21,7 @@ class Database:
                 embed_color TEXT,
                 dev_channel_id INTEGER,
                 staff_settings_channel_id INTEGER,
+                aichat_channel_id INTEGER,
                 category_id INTEGER,
                 ticket_channel_id INTEGER,
                 counter_tickets INTEGER DEFAULT 0,
@@ -104,6 +106,21 @@ class Database:
             )
         """)
         self.conn.commit()
+    
+    def create_freeze_users_table(self):
+        self.cursor.execute("""\
+            CREATE TABLE IF NOT EXISTS freeze_users (
+                id INTEGER PRIMARY KEY,
+                sender TEXT,
+                frozen_by TEXT,
+                nickname TEXT,
+                steamid INTEGER,
+                reason TEXT,
+                comment,
+                frozen_at TEXT
+            )
+        """)
+        self.conn.commit()
 
     def get_settings(self, user_id=None, guild_id=None):
         if user_id is not None:
@@ -144,6 +161,12 @@ class Database:
             self.banned_users = self.cursor.fetchall()
         return self.banned_users
 
+    def get_freeze_users(self):
+        if self.freeze_users is None:
+            self.cursor.execute("SELECT * FROM freeze_users")
+            self.freeze_users = self.cursor.fetchall()
+        return self.freeze_users
+
     def update_settings(self, user_id=None, guild_id=None, **kwargs):
         if user_id is not None:
             self.cursor.execute("UPDATE settings SET {} WHERE user_id = ?".format(", ".join("{} = ?".format(key) for key in kwargs)), (*kwargs.values(), user_id))
@@ -182,6 +205,10 @@ class Database:
         self.cursor.execute("DELETE FROM banned_users WHERE user_id = ?", (user_id,))
         self.conn.commit()
         self.banned_users = None
+    
+    def insert_freeze_users(self, frozen_by, nickname, steamid, reason):
+        self.cursor.execute("INSERT INTO freeze_users (sender, frozen_by, nickname, steamid, reason) VALUES (?, ?, ?, ?)", (frozen_by, nickname, steamid, reason))
+        self.conn.commit()
 
     def close(self):
         self.conn.close()
