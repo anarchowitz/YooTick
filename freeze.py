@@ -15,6 +15,7 @@ class Freeze(commands.Cog):
         self.nickname = None
         self.steamid = None
         self.reason = None
+        self.comment = None
 
     @staticmethod
     def check_staff_permissions(inter, required_role):
@@ -47,10 +48,23 @@ class Freeze(commands.Cog):
         freeze_button = disnake.ui.Button(emoji="❄️", custom_id="freeze", style=disnake.ButtonStyle.gray)
         view.add_item(search_button)
         view.add_item(freeze_button)
-        await inter.response.send_message(embed=embed, view=view)
+        await inter.channel.send(embed=embed, view=view)
     
     @commands.Cog.listener()
     async def on_button_click(self, inter):
+        if inter.data.custom_id == "take_freeze":
+            async with self.lock:
+                await inter.message.delete()
+                frozen_by = inter.author.name
+                self.db.cursor.execute("INSERT INTO freeze_users (sender, frozen_by, nickname, steamid, reason, comment, frozen_at) VALUES (?, ?, ?, ?, ?, ?)", (inter.author.name, frozen_by, self.nickname, self.steamid, self.reason, self.comment,datetime.datetime.now().strftime("%d.%m.%Y")))
+                self.db.conn.commit()
+                embed = disnake.Embed(
+                title="Заморозка",
+                description=f"👨🏻‍💼 - Никнейм: {self.nickname}\n🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{self.steamid})\n❓ - Причина: {self.reason}\n💬 - Комментарий: {self.comment}\n\nПосле успешной заморозки, удалите сообщение для себя ↓",
+                color=self.embed_color
+                )
+                embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                await inter.response.send_message(embed=embed, ephemeral=True)
         if inter.data.custom_id == "search":
             modal = disnake.ui.Modal(
                 title="Поиск по steamid",
@@ -97,6 +111,14 @@ class Freeze(commands.Cog):
                             style=disnake.TextInputStyle.long,
                         )
                     ),
+                    disnake.ui.ActionRow(
+                        disnake.ui.TextInput(
+                            label="Комментарий",
+                            placeholder="К примеру: Платно/Бесплатно/По ситуации",
+                            custom_id="comment_input",
+                            style=disnake.TextInputStyle.short,
+                        )
+                    ),
                 ],
             )
             await inter.response.send_modal(modal)
@@ -108,22 +130,12 @@ class Freeze(commands.Cog):
             
             embed = disnake.Embed(
                 title="Информация по заморозке", 
-                description=f"✍🏻 - Отправил форму: {result[1]}\n❄️ - Заморозил: **{result[2]}**\n👨🏻‍💼 - Никнейм: {result[3]}\n🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{result[4]})\n❓ - Причина: {result[5]}\n🕰️ - Дата заморозки: {result[6]}",
+                description=f"✍🏻 - Отправил форму: {result[1]}\n❄️ - Заморозил: **{result[2]}**\n👨🏻‍💼 - Никнейм: {result[3]}\n🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{result[4]})\n❓ - Причина: {result[5]}\n💬 - Комментарий: {result[6]}\n🕰️ - Дата заморозки: {result[7]}",
                 color=self.embed_color
             )
             embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
             
             await inter.response.send_message(embed=embed, ephemeral=True)
-        if inter.data.custom_id == "freeze_success":
-            async with self.lock:
-                frozen_by = inter.author.name
-                self.db.cursor.execute("INSERT INTO freeze_users (sender, frozen_by, nickname, steamid, reason, frozen_at) VALUES (?, ?, ?, ?, ?, ?)", (inter.author.name, frozen_by, self.nickname, self.steamid, self.reason, datetime.datetime.now().strftime("%d.%m.%Y")))
-                self.db.conn.commit()
-                await inter.message.delete()
-                await inter.response.send_message("Пользователь заморожен!", ephemeral=True)
-        if inter.data.custom_id == "decline":
-            await inter.message.delete()
-            await inter.response.send_message("Заморозка отклонена!", ephemeral=True)
     
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
@@ -136,11 +148,10 @@ class Freeze(commands.Cog):
             if results:
                 embed = disnake.Embed(
                     title="Результат поиска",
-                    description="Список заморозок:\n\n" + "\n".join(f"{i+1}) {result[1]} - {result[6]}" for i, result in enumerate(results)),
+                    description="Список заморозок:\n\n" + "\n".join(f"{i+1}) {result[1]} - {result[7]}" for i, result in enumerate(results)),
                     color=self.embed_color
                 )
                 embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                embed.set_footer(text=f"Отправил: {inter.author.name}")
                 
                 view = disnake.ui.View()
                 for i, result in enumerate(results):
@@ -158,19 +169,18 @@ class Freeze(commands.Cog):
             self.nickname = inter.text_values['nickname_input']
             self.steamid = int(inter.text_values['steamid_input'])
             self.reason = inter.text_values['reason_input']
+            self.comment = inter.text_values['comment_input']
             
             embed = disnake.Embed(
                 title="Заморозка",
-                description=f"👨🏻‍💼 - Никнейм: {self.nickname}\n🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{self.steamid})\n❓ - Причина: {self.reason}",
+                description=f"👨🏻‍💼 - Никнейм: {self.nickname}\n🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{self.steamid})\n❓ - Причина: {self.reason}\n💬 - Комментарий: {self.comment}",
                 color=self.embed_color
             )
             embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
 
             view = disnake.ui.View()
-            freeze_button = disnake.ui.Button(emoji="❄️", custom_id="freeze_success", style=disnake.ButtonStyle.gray)
-            decline_button = disnake.ui.Button(emoji="❌", custom_id="decline", style=disnake.ButtonStyle.gray)
-            view.add_item(freeze_button)
-            view.add_item(decline_button)
+            take_freeze_button = disnake.ui.Button(emoji="❄️", label="Взять заморозку", custom_id="take_freeze", style=disnake.ButtonStyle.gray)
+            view.add_item(take_freeze_button)
 
             await inter.response.send_message(embed=embed, view=view)
             
