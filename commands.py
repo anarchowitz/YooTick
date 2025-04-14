@@ -1,7 +1,8 @@
 import disnake, datetime, logging, random, asyncio
-from math import ceil
 from disnake.ext import commands
 from database import Database
+
+from openai import OpenAI
 
 logger = logging.getLogger('bot')
 logger.setLevel(logging.INFO)
@@ -14,7 +15,7 @@ class Settings(commands.Cog):
         self.stats_message = None
         self.embed_color = disnake.Colour.from_rgb(119, 137, 253)
         self.month_str = None
-
+    
     @staticmethod
     def check_staff_permissions(inter, required_role):
         db = Database("database.db")
@@ -27,6 +28,48 @@ class Settings(commands.Cog):
             return False
         
         return True
+
+    @commands.slash_command(description="Получить ответ от нейросети!")
+    async def ai(self, inter, question: str):
+        await inter.response.defer()
+        db = Database("database.db")
+        settings = db.get_settings(guild_id=inter.guild.id)
+        aichat_channel_id = settings[6]
+
+        if inter.channel.id != aichat_channel_id:
+            await inter.followup.send(f"⚠️ \ Использовать данную команду можно **только в <#{aichat_channel_id}>**")
+            return
+
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key="IT-S-YOUR-TOKEN",
+        )
+        completion = client.chat.completions.create(
+            model="google/gemini-2.5-pro-exp-03-25:free",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"{question}. На русском языке"
+                        }
+                    ]
+                },
+            ],
+        )
+
+        if completion.choices is None or len(completion.choices) == 0:
+            await inter.edit_original_response(content="Ошибка: не удалось получить ответ от нейросети")
+            return
+
+        embed = disnake.Embed(
+            title=f"`{question}`",
+            description=f"> Ответ нейросети:\n {completion.choices[0].message.content}",
+            color=self.embed_color
+        )
+        embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+        await inter.edit_original_response(embed=embed)
 
     @commands.slash_command(description="[STAFF] - Попросить пользователя написать тикет")
     async def proofs(self, inter: disnake.ApplicationCommandInteraction, user: disnake.Member):
