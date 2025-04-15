@@ -56,8 +56,9 @@ class Freeze(commands.Cog):
             async with self.lock:
                 await inter.message.delete()
                 frozen_by = inter.author.name
-                self.db.cursor.execute("INSERT INTO freeze_users (sender, frozen_by, nickname, steamid, reason, comment, frozen_at) VALUES (?, ?, ?, ?, ?, ?)", (inter.author.name, frozen_by, self.nickname, self.steamid, self.reason, self.comment,datetime.datetime.now().strftime("%d.%m.%Y")))
-                self.db.conn.commit()
+                self.db.cursor.execute("INSERT INTO freeze_users (sender, frozen_by, nickname, steamid, reason, comment, frozen_at) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                       (inter.author.name, frozen_by, self.nickname, self.steamid, self.reason, self.comment, datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")))
+                self.db.cursor.commit()
                 embed = disnake.Embed(
                 title="Заморозка",
                 description=f"👨🏻‍💼 - Никнейм: {self.nickname}\n🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{self.steamid})\n❓ - Причина: {self.reason}\n💬 - Комментарий: {self.comment}\n\nПосле успешной заморозки, удалите сообщение для себя ↓",
