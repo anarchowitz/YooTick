@@ -13,7 +13,8 @@ class Moderator:
             r"discord\.com\/invites\/", # spam
             r"discord\.io\/", # spam
             r"discord\.me\/", # spam
-            r"youtude\.net\/", # scam
+            r"youtude\.net\/", # scam link
+            r"lllyoutube\.com\/" # scam link
             r"onlyfans", # spam
             r"free", # spam
             r"gift", # spam
@@ -22,7 +23,6 @@ class Moderator:
             r"server", # spam
             r"invite", # spam
             r"link", # spam
-            r"porn", # spam
             r"leaks", # spam
             r"qr code", # spam
             r"exclusive", # spam
@@ -34,6 +34,7 @@ class Moderator:
             r"@everyone" # spam / mention all
         ]
         self.whitelist = [
+            r"free mirage" # keyword
             r"freeqn", # keyword
             r"naimfree", # keyword
             r"rawetrip", # keyword
@@ -47,6 +48,8 @@ class Moderator:
             self.db.cursor.execute("SELECT * FROM staff_list WHERE user_id = ?", (message.author.id,))
             staff_member = self.db.cursor.fetchone()
             if staff_member is not None:
+                return False
+            if message.author.bot:
                 return False
             for pattern in self.patterns:
                 if pattern.search(message.content):
