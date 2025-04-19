@@ -28,6 +28,33 @@ class Settings(commands.Cog):
             return False
         
         return True
+    
+    def get_completion(self, question: str):
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key="YOUR-TOKEN",
+        )
+        try:
+            completion = client.chat.completions.create(
+                model="deepseek/deepseek-chat-v3-0324:free",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"{question}. На русском языке"
+                            }
+                        ]
+                    },
+                ],
+            )
+            return completion
+        except Exception as e:
+            error_data = e.error
+            error_message = f"Error {error_data['code']}: {error_data['message']}"
+            logger.error(f"[COMMANDS] Ошибка при получении ответа от нейросети: {error_message}")
+            return None
 
     @commands.slash_command(description="Получить ответ от нейросети!")
     async def ai(self, inter, question: str):
@@ -40,36 +67,38 @@ class Settings(commands.Cog):
             await inter.followup.send(f"⚠️ \ Использовать данную команду можно **только в <#{aichat_channel_id}>**")
             return
 
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key="IT-S-YOUR-TOKEN",
-        )
-        completion = client.chat.completions.create(
-            model="google/gemini-2.5-pro-exp-03-25:free",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": f"{question}. На русском языке"
-                        }
-                    ]
-                },
-            ],
-        )
+        loop = asyncio.get_event_loop()
+        completion = await loop.run_in_executor(None, self.get_completion, question)
 
-        if completion.choices is None or len(completion.choices) == 0:
+        if hasattr(completion, 'error'):
             await inter.edit_original_response(content="Ошибка: не удалось получить ответ от нейросети")
+            logger.error(f"[COMMANDS] Ошибка при получении ответа от нейросети: {completion.error}")
             return
 
-        embed = disnake.Embed(
-            title=f"`{question}`",
-            description=f"> Ответ нейросети:\n {completion.choices[0].message.content}",
-            color=self.embed_color
-        )
-        embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-        await inter.edit_original_response(embed=embed)
+        if len(completion.choices[0].message.content) > 4095:
+            chunks = [completion.choices[0].message.content[i:i+4095] for i in range(0, len(completion.choices[0].message.content), 4095)]
+            for i, chunk in enumerate(chunks):
+                embed = disnake.Embed(
+                    title=f"`{question}`",
+                    description=f"> Ответ нейросети:\n {chunk}",
+                    color=self.embed_color
+                )
+                embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                embed.set_footer(text=f"Сгенерированно: {completion.model}")
+                if i == 0:
+                    await inter.edit_original_response(embed=embed)
+                else:
+                    await inter.followup.send(embed=embed)
+        else:
+            embed = disnake.Embed(
+                title=f"`{question}`",
+                description=f"> Ответ нейросети:\n {completion.choices[0].message.content}",
+                color=self.embed_color
+            )
+            embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+            embed.set_footer(text=f"Сгенерированно: {completion.model}")
+            await inter.edit_original_response(embed=embed)
+
 
     @commands.slash_command(description="[STAFF] - Попросить пользователя написать тикет")
     async def proofs(self, inter: disnake.ApplicationCommandInteraction, user: disnake.Member):
