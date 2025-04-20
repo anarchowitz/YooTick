@@ -55,7 +55,12 @@ class Freeze(commands.Cog):
         if inter.data.custom_id == "take_freeze":
             async with self.lock:
                 await inter.message.delete()
-                self.db.cursor.execute("UPDATE freeze_users SET frozen_by = ? WHERE steamid = ?", (inter.author.name, self.steamid))
+                self.db.cursor.execute("""
+                    INSERT INTO freeze_users 
+                    (sender, frozen_by, nickname, steamid, reason, comment, frozen_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, 
+                (self.sender, inter.author.name, self.nickname, self.steamid, self.reason, self.comment, datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")))
                 self.db.conn.commit()
                 embed = disnake.Embed(
                 title="Заморозка",
@@ -169,10 +174,6 @@ class Freeze(commands.Cog):
             self.steamid = int(inter.text_values['steamid_input'])
             self.reason = inter.text_values['reason_input']
             self.comment = inter.text_values['comment_input']
-
-            self.db.cursor.execute("INSERT INTO freeze_users (sender, nickname, steamid, reason, comment, frozen_at) VALUES (?, ?, ?, ?, ?, ?)", 
-                (self.sender, self.nickname, self.steamid, self.reason, self.comment, datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")))
-            self.db.conn.commit()
             
             embed = disnake.Embed(
                 title="Заморозка",
