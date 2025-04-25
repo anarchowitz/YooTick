@@ -34,7 +34,11 @@ class Moderator:
             r"@everyone" # spam / mention all
         ]
         self.whitelist = [
-            r"free mirage" # keyword
+            r"free ping", # keyword
+            r"freeping", # keyword
+            r"free mirage", # keyword
+            r"xone_free", # keyword
+            r"xone free", # keyword
             r"freeqn", # keyword
             r"naimfree", # keyword
             r"rawetrip", # keyword
