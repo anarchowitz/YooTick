@@ -56,7 +56,8 @@ class Database:
                 user_id INTEGER,
                 role TEXT,
                 closed_tickets INTEGER,
-                mention INTEGER
+                mention INTEGER,
+                daily_quota INTEGER
             )
         """)
         self.conn.commit()
