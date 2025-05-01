@@ -10,7 +10,8 @@ from notifications import run_schedule
 intents = disnake.Intents.default() 
 intents.message_content = True
 intents.guilds = True
-version = "3.5.7"
+intents.members = True
+version = "3.5.8.1"
 bot = commands.Bot(command_prefix="/", intents=intents, activity=disnake.Activity(type=disnake.ActivityType.listening, name=f"yooma.su | v{version}"))
 
 db = Database("database.db")
@@ -73,6 +74,7 @@ if __name__ == "__main__":
     setupfastcommands(bot)
     setupfreeze(bot)
     with open('yootoken.txt', 'r') as file:
-        token = file.read().strip()
+        lines = file.readlines()
+        token = lines[0].strip()
     bot.loop.create_task(run_schedule(bot))
     bot.run(token)
