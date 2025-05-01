@@ -7,6 +7,10 @@ from openai import OpenAI
 logger = logging.getLogger('bot')
 logger.setLevel(logging.INFO)
 
+with open('yootoken.txt', 'r', encoding='utf-8') as file:
+    lines = file.readlines()
+    apikey = lines[1].strip()
+
 class Settings(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -32,7 +36,7 @@ class Settings(commands.Cog):
     def get_completion(self, question: str):
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key="YOUR-TOKEN",
+            api_key=apikey,
         )
         try:
             completion = client.chat.completions.create(
@@ -84,7 +88,7 @@ class Settings(commands.Cog):
                     color=self.embed_color
                 )
                 embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                embed.set_footer(text=f"Сгенерированно: {completion.model}")
+                embed.set_footer(text=f"Сгенерированно: Deepseek-V3-0324")
                 if i == 0:
                     await inter.edit_original_response(embed=embed)
                 else:
@@ -96,7 +100,7 @@ class Settings(commands.Cog):
                 color=self.embed_color
             )
             embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-            embed.set_footer(text=f"Сгенерированно: {completion.model}")
+            embed.set_footer(text=f"Сгенерированно: Deepseek-V3-0324")
             await inter.edit_original_response(embed=embed)
 
 
@@ -498,111 +502,32 @@ class Settings(commands.Cog):
         self.bot.add_modal_handler(self.refund_modal_callback)
     
 
-    @commands.slash_command(description="[DEV] - Просмотр статистики по датам")
+    @commands.slash_command(description="[DEV] - Просмотр статистики по дате")
     async def date_stats(self, inter):
         try:
             if not self.check_staff_permissions(inter, "dev"):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
                 logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /date_stats, но не имеет прав")
                 return
-            self.db.cursor.execute("SELECT DISTINCT SUBSTR(date, 4, 2) AS month FROM date_stats ORDER BY month DESC")
-            months = self.db.cursor.fetchall()
-            options = []
-            for month in months:
-                month_str = month[0]
-                month_name = self.get_month_name(month_str)
-                options.append(disnake.SelectOption(label=f"{month_name} ({month_str})", value=month_str))
-            view = disnake.ui.View()
-            select_menu = disnake.ui.Select(
-                placeholder="Выберите месяц",
-                custom_id="month_select",
-                options=options
+
+            modal = disnake.ui.Modal(
+                title="Просмотр статистики",
+                custom_id="date_stats_modal",
+                components=[
+                    disnake.ui.TextInput(
+                        label="Введите дату (ДД.ММ.ГГГГ)",
+                        placeholder="Например: 23.05.2025",
+                        custom_id="date_input",
+                        style=disnake.TextInputStyle.short,
+                        max_length=10
+                    )
+                ]
             )
-            select_menu.callback = self.month_stats_callback
-            view.add_item(select_menu)
-            await inter.response.send_message("Выберите месяц", view=view)
-            logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /date_stats")
+            await inter.response.send_modal(modal)
+            
         except Exception as e:
-            await inter.response.send_message("Ошибка при получении списка дат", ephemeral=True)
-            logger.error(f"[COMMANDS] Ошибка при получении списка дат: {e}")
-
-    async def month_stats_callback(self, inter):
-        self.month_str = inter.data.values[0]
-        month_name = self.get_month_name(self.month_str)
-        self.db.cursor.execute("SELECT DISTINCT date FROM date_stats WHERE SUBSTR(date, 4, 2) = ? ORDER BY date DESC", (self.month_str,))
-        dates = self.db.cursor.fetchall()
-        options = [
-            disnake.SelectOption(label="Назад", value="назад"),
-            disnake.SelectOption(label="За месяц", value="за месяц"),
-        ]
-        for date in dates:
-            date_str = date[0]
-            options.append(disnake.SelectOption(label=date_str, value=date_str))
-        view = disnake.ui.View()
-        select_menu = disnake.ui.Select(
-            placeholder="Выберите дату",
-            custom_id="date_select",
-            options=options
-        )
-        select_menu.callback = self.date_stats_callback
-        view.add_item(select_menu)
-        await inter.response.edit_message(content=f"Выберите дату за {month_name} ({self.month_str})", view=view)
-    
-    async def date_stats_callback(self, inter):
-        value = inter.data.values[0]
-        if value == "назад":
-            self.db.cursor.execute("SELECT DISTINCT SUBSTR(date, 4, 2) AS month FROM date_stats ORDER BY month DESC")
-            months = self.db.cursor.fetchall()
-            options = []
-            for month in months:
-                month_str = month[0]
-                month_name = self.get_month_name(month_str)
-                options.append(disnake.SelectOption(label=f"{month_name} ({month_str})", value=month_str))
-            view = disnake.ui.View()
-            select_menu = disnake.ui.Select(
-                placeholder="Выберите месяц",
-                custom_id="month_select",
-                options=options
-            )
-            select_menu.callback = self.month_stats_callback
-            view.add_item(select_menu)
-            await inter.response.edit_message(content="Выберите месяц", view=view)
-        elif value == "за месяц":
-            if self.month_str:
-                month_name = self.get_month_name(self.month_str)
-                self.db.cursor.execute("SELECT username, SUM(closed_tickets) AS total_closed FROM date_stats WHERE SUBSTR(date, 4, 2) = ? GROUP BY username ORDER BY total_closed DESC", (self.month_str,))
-                stats = self.db.cursor.fetchall()
-                embed = disnake.Embed(title=f"Статистика за {month_name} ({self.month_str})", color=self.embed_color)
-                for username, total_closed in stats:
-                    embed.add_field(name=username, value=f"Закрыто тикетов: {total_closed}", inline=False)
-                await inter.response.edit_message(embed=embed, content="")
-            else:
-                await inter.response.send_message("Ошибка при получении месяца", ephemeral=True)
-        else:
-            date_str = value
-            self.db.cursor.execute("SELECT username, closed_tickets FROM date_stats WHERE date = ?", (date_str,))
-            stats = self.db.cursor.fetchall()
-            embed = disnake.Embed(title=f"Статистика за {date_str}", color=self.embed_color)
-            for username, closed_tickets in stats:
-                embed.add_field(name=username, value=f"Закрыто тикетов: {closed_tickets}", inline=False)
-            await inter.response.edit_message(embed=embed, content="")
-
-    def get_month_name(self, month_str):
-        month_names = {
-            "01": "Январь",
-            "02": "Февраль",
-            "03": "Март",
-            "04": "Апрель",
-            "05": "Май",
-            "06": "Июнь",
-            "07": "Июль",
-            "08": "Август",
-            "09": "Сентябрь",
-            "10": "Октябрь",
-            "11": "Ноябрь",
-            "12": "Декабрь"
-        }
-        return month_names.get(month_str, "Неизвестный месяц")
+            await inter.response.send_message("Ошибка при открытии модального окна", ephemeral=True)
+            logger.error(f"[COMMANDS] Ошибка при открытии модального окна: {e}")
 
     @commands.slash_command(description="[DEV] - Статистика сотрудников")
     async def stats(self, inter):
@@ -871,6 +796,46 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
+        if inter.data.custom_id == "date_stats_modal":
+            try:
+                date = inter.text_values['date_input']
+                try:
+                    day, month, year = map(int, date.split('.'))
+                    datetime.datetime.strptime(date, "%d.%m.%Y")
+                except ValueError:
+                    await inter.response.send_message("⚠ Неверный формат даты! Используйте ДД.ММ.ГГГГ (например 23.05.2025)", ephemeral=True)
+                    return
+                self.db.cursor.execute("""
+                    SELECT username, closed_tickets 
+                    FROM date_stats 
+                    WHERE date = ?
+                    ORDER BY closed_tickets DESC
+                """, (date,))
+                
+                stats = self.db.cursor.fetchall()
+                if not stats:
+                    await inter.response.send_message(f"Статистика за {date} не найдена!", ephemeral=True)
+                    return
+                embed = disnake.Embed(
+                    title=f"📊 Статистика за {date}",
+                    color=self.embed_color
+                )
+                total_closed = 0
+                for username, closed_tickets in stats:
+                    embed.add_field(
+                        name=f"👤 {username}",
+                        value=f"Закрыто тикетов: {closed_tickets}",
+                        inline=False
+                    )
+                    total_closed += closed_tickets
+                
+                embed.set_footer(text=f"Всего закрыто тикетов: {total_closed}")
+                
+                await inter.response.send_message(embed=embed)
+                
+            except Exception as e:
+                await inter.response.send_message("Ошибка при получении статистики", ephemeral=True)
+                logger.error(f"[COMMANDS] Ошибка при обработке статистики: {e}")
         if inter.data.custom_id == "ticket_name_modal":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -879,6 +844,7 @@ class Settings(commands.Cog):
             self.db.cursor.execute("UPDATE staff_list SET ticket_name = ? WHERE username = ?", (new_ticket_name, inter.author.name))
             self.db.conn.commit()
             await inter.response.send_message(f"Ник в заголовке тикета изменен на {new_ticket_name}", ephemeral=True)
+
         if inter.data.custom_id == "refund_modal":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
