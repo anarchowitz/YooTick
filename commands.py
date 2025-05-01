@@ -19,6 +19,13 @@ class Settings(commands.Cog):
         self.stats_message = None
         self.embed_color = disnake.Colour.from_rgb(119, 137, 253)
         self.month_str = None
+        self.protected_roles = [
+        "💫", "yooma.su", "YooTick",
+        "Akemi", "VK Music Bot", "Разработчик",
+        "Администратор Discord", "Куратор", "Гл. Администратор", 
+        "Ст. Администратор", "Ст. Модератор", "ServerStats",
+        "Игрок", "Буст сервера", ""
+        ]
     
     @staticmethod
     def check_staff_permissions(inter, required_role):
@@ -33,6 +40,11 @@ class Settings(commands.Cog):
         
         return True
     
+    def is_protected_role(self, role):
+        if role.name.lower() in [str(x).lower() for x in self.protected_roles]:
+            return True
+        return False
+
     def get_completion(self, question: str):
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
@@ -186,21 +198,28 @@ class Settings(commands.Cog):
 
         embed = disnake.Embed(
             title="Помощник по тикетам",
-            description=f"Активные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n🔄 - Обновить информацию по тикетам\n🔔 - Пинг при создании тикета\n📝 - Изменить ник в заголовке тикета\n📊 - Просмотреть ваши активные тикеты",
+            description=f"Активные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n"
+                        f"🔄 - Обновить информацию по тикетам\n"
+                        f"🔔 - Пинг при создании тикета\n"
+                        f"📝 - Изменить ник в заголовке тикета\n"
+                        f"📊 - Просмотреть активные тикеты\n\n"
+                        f"⚠️ - Уведомления о норме\n"
+                        f"👥 - Управление ролями пользователя",
             color=self.embed_color
         )
         embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+        
         view = disnake.ui.View()
-        update_button = disnake.ui.Button(emoji="🔄", custom_id="update_staff_settings", style=disnake.ButtonStyle.gray)
-        ping_button = disnake.ui.Button(emoji="🔔", custom_id="ping", style=disnake.ButtonStyle.gray)
-        ticket_name_button = disnake.ui.Button(emoji="📝", custom_id="ticket_name", style=disnake.ButtonStyle.gray)
-        active_tickets_button = disnake.ui.Button(emoji="📊", custom_id="active_tickets", style=disnake.ButtonStyle.gray)
-        view.add_item(update_button)
-        view.add_item(ping_button)
-        view.add_item(ticket_name_button)
-        view.add_item(active_tickets_button)
+        view.add_item(disnake.ui.Button(emoji="🔄", custom_id="update_staff_settings", style=disnake.ButtonStyle.gray))
+        view.add_item(disnake.ui.Button(emoji="🔔", custom_id="ping", style=disnake.ButtonStyle.gray))
+        view.add_item(disnake.ui.Button(emoji="📝", custom_id="ticket_name", style=disnake.ButtonStyle.gray))
+        view.add_item(disnake.ui.Button(emoji="📊", custom_id="active_tickets", style=disnake.ButtonStyle.gray))
+        view.add_item(disnake.ui.Button(emoji="⚠️", custom_id="daily_quota", style=disnake.ButtonStyle.gray, row=1))
+        view.add_item(disnake.ui.Button(emoji="👥", custom_id="manage_roles", style=disnake.ButtonStyle.gray, row=1))
+        
         await staff_settings_channel.send(embed=embed, view=view)
         await inter.response.send_message("Сообщение отправлено!", ephemeral=True)
+        
 
     @commands.slash_command(description="[STAFF] - Показать доступные быстрые команды")
     async def fastcommands(self, inter):
@@ -570,6 +589,25 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_button_click(self, inter):
+        if inter.data.custom_id == "manage_roles":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("❌ Недостаточно прав", ephemeral=True)
+                return
+            
+            modal = disnake.ui.Modal(
+                title="Управление ролями",
+                custom_id="role_management_modal",
+                components=[
+                    disnake.ui.TextInput(
+                        label="Введите юзернейм участника",
+                        placeholder="Введите юзернейм (e.g anarchowitz)",
+                        custom_id="target_username",
+                        style=disnake.TextInputStyle.short,
+                        max_length=32
+                    )
+                ]
+            )
+            await inter.response.send_modal(modal)
         if inter.data.custom_id == "update_staff_settings":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -580,8 +618,13 @@ class Settings(commands.Cog):
             free_tickets = self.db.cursor.fetchall()
 
             embed = disnake.Embed(
-                title="YoomaSupport",
-                description=f"Информация по тикетам:\n\nАктивные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n🔄 - Обновить информацию по тикетам\n🔔 - Пинг при создании тикета\n📝 - Изменить ник в заголовке тикета\n📊 - Просмотреть ваши активные тикеты",
+                title="Помощник по тикетам",
+                description=f"Активные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n"
+                            f"🔄 - Обновить информацию по тикетам\n"
+                            f"🔔 - Пинг при создании тикета\n"
+                            f"📝 - Изменить ник в заголовке тикета\n"
+                            f"📊 - Просмотреть активные тикеты\n\n"
+                            f"⚠️ - Уведомления о норме",
                 color=self.embed_color
             )
             await inter.message.edit(embed=embed)
@@ -617,6 +660,28 @@ class Settings(commands.Cog):
             )
             await inter.response.send_modal(modal)
             self.bot.add_modal_handler(self.ticket_name_modal_callback)
+
+        elif inter.data.custom_id == "daily_quota":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            
+            self.db.cursor.execute("SELECT daily_quota FROM staff_list WHERE username = ?", (inter.author.name,))
+            current_quota = self.db.cursor.fetchone()
+            
+            if current_quota is None:
+                await inter.response.send_message("Вы не найдены в списке сотрудников!", ephemeral=True)
+                return
+            
+            new_quota = 0 if current_quota[0] == 1 else 1
+            self.db.cursor.execute("UPDATE staff_list SET daily_quota = ? WHERE username = ?", (new_quota, inter.author.name))
+            self.db.conn.commit()
+            
+            status = "включена" if new_quota == 1 else "выключена"
+            await inter.response.send_message(
+                f"Информация о невыполненной норме {status} для {inter.author.mention}", 
+                ephemeral=True
+            )
 
         elif inter.data.custom_id == "active_tickets":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
@@ -796,6 +861,62 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
+        if inter.data.custom_id == "role_management_modal":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("❌ Недостаточно прав", ephemeral=True)
+                return
+                
+            target_username = inter.text_values["target_username"]
+            
+            # Получаем пользователя по юзернейму
+            self.db.cursor.execute("SELECT user_id FROM staff_list WHERE username = ?", (target_username,))
+            user_data = self.db.cursor.fetchone()
+            
+            if not user_data:
+                await inter.response.send_message(f"❌ Пользователь {target_username} не найден в базе", ephemeral=True)
+                return
+                
+            user_id = user_data[0]
+            member = inter.guild.get_member(user_id)
+            
+            if not member:
+                await inter.response.send_message(f"❌ Пользователь {target_username} не найден на сервере", ephemeral=True)
+                return
+                
+            roles = [
+                role for role in member.roles 
+                if role != inter.guild.default_role and not self.is_protected_role(role)
+            ]
+            
+            if not roles:
+                await inter.response.send_message(
+                    f"❌ У пользователя {target_username} нет ролей, которые можно удалить",
+                    ephemeral=True
+                )
+                return
+                
+            # Создаем меню выбора ролей
+            view = disnake.ui.View()
+            select_menu = disnake.ui.Select(
+                placeholder="Выберите роль для удаления",
+                custom_id=f"remove_role_{member.id}"
+            )
+            
+            for role in roles:
+                select_menu.add_option(
+                    label=role.name,
+                    value=str(role.id),
+                    description=f"Удалить роль {role.name}"
+                )
+                
+            view.add_item(select_menu)
+            select_menu.callback = self.remove_role_callback
+            
+            await inter.response.send_message(
+                f"Выберите роль для удаления у пользователя {member.mention}",
+                view=view,
+                ephemeral=True
+            )
         if inter.data.custom_id == "date_stats_modal":
             try:
                 date = inter.text_values['date_input']
@@ -907,6 +1028,46 @@ class Settings(commands.Cog):
                 f"Айди канала тикетов: {channel_id}\n"
                 f"Рабочее время: {primetime}\n",
                 color=self.embed_color),
+                ephemeral=True
+            )
+    async def remove_role_callback(self, inter: disnake.MessageInteraction):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("❌ Недостаточно прав", ephemeral=True)
+            return
+            
+        custom_id_parts = inter.data.custom_id.split("_")
+        if len(custom_id_parts) != 3:
+            await inter.response.send_message("❌ Ошибка обработки запроса", ephemeral=True)
+            return
+            
+        target_user_id = int(custom_id_parts[2])
+        role_id = int(inter.data.values[0])
+        
+        member = inter.guild.get_member(target_user_id)
+        role = inter.guild.get_role(role_id)
+        
+        if not member or not role:
+            await inter.response.send_message("❌ Пользователь или роль не найдены", ephemeral=True)
+            return
+        
+        # Проверяем, является ли роль защищенной
+        if self.is_protected_role(role):
+            await inter.response.send_message(
+                f"❌ Роль {role.name} защищена и не может быть удалена!",
+                ephemeral=True
+            )
+            return
+            
+        try:
+            await member.remove_roles(role)
+            await inter.response.send_message(
+                f"✅ Роль {role.name} успешно удалена у пользователя {member.mention}",
+                ephemeral=True
+            )
+            logger.info(f"[ROLE] {inter.author} удалил роль {role.name} у {member}")
+        except Exception as e:
+            await inter.response.send_message(
+                f"❌ Ошибка при удалении роли: {str(e)}",
                 ephemeral=True
             )
 
