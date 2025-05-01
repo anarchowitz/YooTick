@@ -31,8 +31,6 @@ async def send_warning(user, closed_tickets):
 
 async def job(bot):
     today = datetime.date.today().strftime("%d.%m.%Y")
-    
-    # Получаем всех сотрудников с daily_quota = 1 и их статистику
     query = """
         SELECT 
             sl.user_id,
@@ -67,13 +65,7 @@ async def run_schedule(bot):
     while True:
         now = datetime.datetime.now()
         target_time = now.replace(hour=18, minute=0, second=0, microsecond=0)
-        
-        # Если текущее время уже прошло целевое, устанавливаем на завтра
         if now >= target_time:
             target_time += datetime.timedelta(days=1)
-        
-        # Ожидаем до целевого времени
         await asyncio.sleep((target_time - now).total_seconds())
-        
-        # Выполняем проверку
         await job(bot)
