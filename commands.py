@@ -866,21 +866,18 @@ class Settings(commands.Cog):
                 await inter.response.send_message("❌ Недостаточно прав", ephemeral=True)
                 return
                 
-            target_username = inter.text_values["target_username"]
-            
-            # Получаем пользователя по юзернейму
-            self.db.cursor.execute("SELECT user_id FROM staff_list WHERE username = ?", (target_username,))
-            user_data = self.db.cursor.fetchone()
-            
-            if not user_data:
-                await inter.response.send_message(f"❌ Пользователь {target_username} не найден в базе", ephemeral=True)
-                return
-                
-            user_id = user_data[0]
-            member = inter.guild.get_member(user_id)
+            target_username = inter.text_values["target_username"].strip()
+            member = None
+            for guild_member in inter.guild.members:
+                if guild_member.name.lower() == target_username.lower():
+                    member = guild_member
+                    break
             
             if not member:
-                await inter.response.send_message(f"❌ Пользователь {target_username} не найден на сервере", ephemeral=True)
+                await inter.response.send_message(
+                    f"❌ Пользователь с ником '{target_username}' не найден на сервере",
+                    ephemeral=True
+                )
                 return
                 
             roles = [
