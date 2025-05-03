@@ -19,9 +19,11 @@ class FastCommand(commands.Cog):
         if staff_member is not None and staff_member[4] in ["staff", "dev"]:
             return True
 
+        allowed_roles = {"спонсор", "модератор серверов", "юмабой", "юмагерл"}
+
         if isinstance(inter.author, disnake.Member):
             role_names = [role.name.lower() for role in inter.author.roles]
-            if "спонсор" in role_names or "модератор серверов" in role_names:
+            if any(role in allowed_roles for role in role_names):
                 return True
                 
         return False
