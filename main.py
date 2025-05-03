@@ -51,6 +51,7 @@ async def on_ready():
         )
         db.conn.commit()
         print("Импортед дефаулт фаст коммандс епта")
+        
     db.cursor.execute("SELECT dev_channel_id FROM settings")
     dev_channel_id = db.cursor.fetchone()
     if dev_channel_id is not None:
