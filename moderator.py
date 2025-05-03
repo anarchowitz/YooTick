@@ -21,14 +21,12 @@ class Moderator:
             r"giveaway", # spam
             r"join", # spam
             r"server", # spam
-            r"invite", # spam
             r"link", # spam
             r"leaks", # spam
             r"qr code", # spam
             r"exclusive", # spam
             r"personal", # spam
             r"wet", # spam
-            r"fire", # spam
             r"com server", # spam
             r"DM me", # spam
             r"@everyone" # spam / mention all
