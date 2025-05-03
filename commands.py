@@ -930,19 +930,21 @@ class Settings(commands.Cog):
                 except ValueError:
                     await inter.response.send_message("⚠ Неверный формат даты! Используйте ДД.ММ.ГГГГ", ephemeral=True)
                     return
-
                 current_date = datetime.date.today()
-                months_used = (current_date.year - purchase_date.year) * 12 + (current_date.month - purchase_date.month)
-                if current_date.day < purchase_date.day:
-                    months_used -= 1
+                days_used = (current_date - purchase_date).days
+                if days_used < 0:
+                    await inter.response.send_message("⚠ Дата покупки не может быть в будущем!", ephemeral=True)
+                    return
                 guaranteed_deduction = price / 3 
-                monthly_deduction = 100 * months_used 
-                refund = max(0, (price - guaranteed_deduction) - monthly_deduction)
+                
+                daily_deduction_rate = 100 / 30  # 3.33 руб в день
+                time_deduction = daily_deduction_rate * days_used
+                refund = max(0, (price - guaranteed_deduction) - time_deduction)
 
                 await inter.response.edit_message(
                     f"💸 **Авто-подсчет возврата**:\n"
                     f"Цена покупки: `{price}₽`\n"
-                    f"Использовано месяцев: `{months_used}`\n\n"
+                    f"Вычет за использование: `{int(time_deduction)}₽`\n\n"
                     f"Итого к возврату: `{int(refund)}₽`",
                     view=None
                 )
