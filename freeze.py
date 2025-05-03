@@ -31,6 +31,14 @@ class Freeze(commands.Cog):
         
         return True
     
+    def is_st_moderator(self, inter):
+        member = inter.guild.get_member(inter.author.id)
+        if not member:
+            return False
+
+        st_moderator_roles = [role for role in member.roles if "ст. модератор" in role.name.lower()]
+        return len(st_moderator_roles) > 0
+    
     @commands.slash_command(description="[DEV] - freeze msg")
     async def freezemsg(self, inter):
         if not self.check_staff_permissions(inter, "dev"):
@@ -44,6 +52,7 @@ class Freeze(commands.Cog):
         )
         embed.set_author(name='Yooma Support', 
                         icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+        embed.set_image(url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
         
         view = disnake.ui.View()
         search_button = disnake.ui.Button(emoji="🔎", custom_id="search", style=disnake.ButtonStyle.gray)
@@ -66,29 +75,36 @@ class Freeze(commands.Cog):
                     try:
                         self.db.cursor.execute("""
                             INSERT INTO freeze_users 
-                            (sender, frozen_by, nickname, steamid, reason, comment, frozen_at) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            (sender, frozen_by, nickname, steamid, reason, comment, frozen_at, image_url) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """, 
                         (freeze_data['sender'], inter.author.name, freeze_data['nickname'], 
                          freeze_data['steamid'], freeze_data['reason'], 
-                         freeze_data['comment'], datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")))
+                         freeze_data['comment'], datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S"), freeze_data['image_url']))
                         self.db.conn.commit()
                         
                         embed = disnake.Embed(
                             title="Заморозка",
                             description=f"👨🏻‍💼 - Никнейм: {freeze_data['nickname']}\n"
-                                      f"🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{freeze_data['steamid']})\n"
-                                      f"❓ - Причина: {freeze_data['reason']}\n"
-                                      f"💬 - Комментарий: {freeze_data['comment']}\n\n"
-                                      f"После успешной заморозки, удалите сообщение для себя ↓",
-                            color=self.embed_color
+                                    f"🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{freeze_data['steamid']})\n"
+                                    f"❓ - Причина: {freeze_data['reason']}\n"
+                                    f"💬 - Комментарий: {freeze_data['comment']}\n"
+                                    f"🖼️ - Изображение: {freeze_data['image_url']}\n\n"
+                                    f"После успешной заморозки, удалите сообщение для себя ↓",
+                            color=self.embed_color,
                         )
                         embed.set_author(name='Yooma Support', 
                                         icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                        
+                        if freeze_data['image_url']:
+                            embed.set_image(url=freeze_data['image_url'])
+
                         await inter.message.delete()
-                        await inter.response.send_message(embed=embed, ephemeral=True)
-                        
+                        if freeze_data['image_url']:
+                            
+                            await inter.response.send_message(embed=embed, ephemeral=True)
+                        else: 
+                            await inter.response.send_message(embed=embed, ephemeral=True)
+
                         if inter.message.id in self.freeze_data:
                             del self.freeze_data[inter.message.id]
                             
@@ -151,6 +167,15 @@ class Freeze(commands.Cog):
                                 style=disnake.TextInputStyle.short,
                             )
                         ),
+                        disnake.ui.ActionRow(
+                            disnake.ui.TextInput(
+                                label="Изображение",
+                                placeholder="К примеру: https://gayporno.me/mymom.png",
+                                custom_id="image_url",
+                                style=disnake.TextInputStyle.long,
+                                required=False
+                            )
+                        ),
                     ],
                 )
                 await inter.response.send_modal(modal)
@@ -170,11 +195,14 @@ class Freeze(commands.Cog):
                                   f"🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{result[4]})\n"
                                   f"❓ - Причина: {result[5]}\n"
                                   f"💬 - Комментарий: {result[6]}\n"
-                                  f"🕰️ - Дата заморозки: {result[7]}",
+                                  f"🕰️ - Дата заморозки: {result[7]}\n"
+                                  f"🖼️ - Изображение: {result[8]}",
                         color=self.embed_color
                     )
                     embed.set_author(name='Yooma Support', 
                                     icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
+                    if result[8]:
+                        embed.set_image(url=result[8])
                     
                     await inter.response.send_message(embed=embed, ephemeral=True)
                 else:
@@ -227,7 +255,8 @@ class Freeze(commands.Cog):
                     'nickname': inter.text_values['nickname_input'],
                     'steamid': steamid,
                     'reason': inter.text_values['reason_input'],
-                    'comment': inter.text_values['comment_input']
+                    'comment': inter.text_values['comment_input'],
+                    'image_url': inter.text_values.get("image_url", "").strip()
                 }
                 
                 embed = disnake.Embed(
@@ -235,12 +264,15 @@ class Freeze(commands.Cog):
                     description=f"👨🏻‍💼 - Никнейм: {freeze_data['nickname']}\n"
                             f"🌐 - [Ссылка на профиль](https://yooma.su/ru/profile/{freeze_data['steamid']})\n"
                             f"❓ - Причина: {freeze_data['reason']}\n"
-                            f"💬 - Комментарий: {freeze_data['comment']}",
+                            f"💬 - Комментарий: {freeze_data['comment']}\n"
+                            f"🖼️ - Изображение: {freeze_data['image_url']}",
                     color=self.embed_color,
                 )
                 embed.set_author(name='Yooma Support', 
                                 icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
                 embed.set_footer(text=f"Отправил: {inter.author.name}")
+                if freeze_data['image_url']:
+                    embed.set_image(url=freeze_data['image_url'])
 
                 view = disnake.ui.View()
                 take_freeze_button = disnake.ui.Button(
@@ -250,10 +282,30 @@ class Freeze(commands.Cog):
                     style=disnake.ButtonStyle.gray
                 )
                 view.add_item(take_freeze_button)
-                await inter.response.send_message("Форма заморозки отправлена", ephemeral=True)
-                msg = await inter.channel.send(embed=embed, view=view)
-                
-                self.freeze_data[msg.id] = freeze_data
+
+                if not self.is_st_moderator(inter):
+                    await inter.response.send_message(embed=embed, ephemeral=True)
+                    msg = await inter.original_message()
+                    self.freeze_data[msg.id] = freeze_data
+                    if not freeze_data:
+                        await inter.response.send_message("Данные для заморозки не найдены или устарели", ephemeral=True)
+                        return
+                    self.db.cursor.execute("""
+                        INSERT INTO freeze_users 
+                        (sender, frozen_by, nickname, steamid, reason, comment, frozen_at, image_url) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, 
+                    (freeze_data['sender'], inter.author.name, freeze_data['nickname'], 
+                    freeze_data['steamid'], freeze_data['reason'], 
+                    freeze_data['comment'], datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S"), freeze_data['image_url']))
+                    self.db.conn.commit()
+
+                    if inter.message.id in self.freeze_data:
+                        del self.freeze_data[inter.message.id]
+                else:
+                    await inter.response.send_message("Форма заморозки отправлена", ephemeral=True)
+                    msg = await inter.channel.send(embed=embed, view=view)
+                    self.freeze_data[msg.id] = freeze_data
                 
         except Exception as e:
             logger.error(f"Ошибка в обработке модального окна: {e}")
