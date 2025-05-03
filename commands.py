@@ -361,19 +361,33 @@ class Settings(commands.Cog):
             embed.add_field(name="Разморозка прав для спонсора", value="750р", inline=False)
             await inter.response.edit_message(embed=embed)
         elif inter.data.values[0] == "авто-подсчет возврата":
-            view = disnake.ui.View()
-            select_menu = disnake.ui.Select(
-                placeholder="Выберите пункт",
-                custom_id="admin_level_select",
-                options=[
-                    disnake.SelectOption(label="Админ 1 уровня", value="admin_1lvl"),
-                    disnake.SelectOption(label="Админ 2 уровня", value="admin_2lvl"),
-                    disnake.SelectOption(label="Спонсор", value="sponsor"),
-                ]
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            modal = disnake.ui.Modal(
+                title="Авто-подсчет возврата",
+                custom_id="refund_modal",
+                components=[
+                    disnake.ui.ActionRow(
+                        disnake.ui.TextInput(
+                            label="Цена покупки админки",
+                            placeholder="1337",
+                            custom_id="price_input",
+                            style=disnake.TextInputStyle.short,
+                        )
+                    ),
+                    disnake.ui.ActionRow(
+                        disnake.ui.TextInput(
+                            label="Дата покупки админки (дд.мм.гггг)",
+                            placeholder="12.09.2024",
+                            custom_id="date_input",
+                            style=disnake.TextInputStyle.short,
+                        )
+                    ),
+                ],
             )
-            select_menu.callback = self.refund_callback
-            view.add_item(select_menu)
-            await inter.response.edit_message(content="", view=view)
+
+            await inter.response.send_modal(modal)
 
     async def type_callback(self, inter):
         if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
@@ -503,48 +517,6 @@ class Settings(commands.Cog):
                 price_diff_sponsor = sponsor_price - admin_2lvl_price
                 embed.add_field(name="С 2lvl на Sponsor", value=f"{price_diff_sponsor}р", inline=False)
             await inter.response.edit_message(embed=embed)
-
-    async def refund_callback(self, inter):
-        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-            return
-
-        admin_level = inter.data.values[0]
-
-        modal = disnake.ui.Modal(
-            title="Авто-подсчет возврата",
-            custom_id="refund_modal",
-            components=[
-                disnake.ui.ActionRow(
-                    disnake.ui.TextInput(
-                        label="Уровень админки",
-                        placeholder="1lvl или 2lvl или sponsor",
-                        custom_id="admin_level_input",
-                        style=disnake.TextInputStyle.short,
-                        value=admin_level
-                    )
-                ),
-                disnake.ui.ActionRow(
-                    disnake.ui.TextInput(
-                        label="Цена покупки админки",
-                        placeholder="1337",
-                        custom_id="price_input",
-                        style=disnake.TextInputStyle.short,
-                    )
-                ),
-                disnake.ui.ActionRow(
-                    disnake.ui.TextInput(
-                        label="Дата покупки админки (дд.мм.гггг)",
-                        placeholder="12.09.2024",
-                        custom_id="date_input",
-                        style=disnake.TextInputStyle.short,
-                    )
-                ),
-            ],
-        )
-
-        await inter.response.send_modal(modal)
-        self.bot.add_modal_handler(self.refund_modal_callback)
     
 
     @commands.slash_command(description="[DEV] - Просмотр статистики по дате")
@@ -935,6 +907,36 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
+        if inter.data.custom_id == "refund_modal":
+            try:
+                price = int(inter.text_values['price_input'])
+                date_str = inter.text_values['date_input']
+                
+                try:
+                    purchase_date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
+                except ValueError:
+                    await inter.response.send_message("⚠ Неверный формат даты! Используйте ДД.ММ.ГГГГ", ephemeral=True)
+                    return
+
+                current_date = datetime.date.today()
+                months_used = (current_date.year - purchase_date.year) * 12 + (current_date.month - purchase_date.month)
+                if current_date.day < purchase_date.day:
+                    months_used -= 1
+                guaranteed_deduction = price / 3 
+                monthly_deduction = 100 * months_used 
+                refund = max(0, (price - guaranteed_deduction) - monthly_deduction)
+
+                await inter.response.edit_message(
+                    f"💸 **Авто-подсчет возврата**:\n"
+                    f"Цена покупки: `{price}₽`\n"
+                    f"Использовано месяцев: `{months_used}`\n\n"
+                    f"Итого к возврату: `{int(refund)}₽`",
+                    view=None
+                )
+                
+            except ValueError:
+                await inter.response.send_message("⚠ Ошибка в данных! Убедитесь что цена - число, а дата в формате ДД.ММ.ГГГГ", ephemeral=True)
+
         if inter.data.custom_id.startswith("workshop_modal_"):
             priority_level = inter.data.custom_id.split("_")[2]
             priority_colors = {
@@ -960,7 +962,7 @@ class Settings(commands.Cog):
             view.add_item(disnake.ui.Button(emoji="💩", custom_id=f"workshop_reject_{inter.author.id}", style=disnake.ButtonStyle.gray))
             
             if priority_level == "high":
-                high_priority_user_id = 1352144578395766825
+                high_priority_user_id = 296675294092197889
                 try:
                     user = await self.bot.fetch_user(high_priority_user_id)
                     dm_channel = await user.create_dm()
@@ -1105,27 +1107,6 @@ class Settings(commands.Cog):
             self.db.cursor.execute("UPDATE staff_list SET ticket_name = ? WHERE username = ?", (new_ticket_name, inter.author.name))
             self.db.conn.commit()
             await inter.response.send_message(f"Ник в заголовке тикета изменен на {new_ticket_name}", ephemeral=True)
-
-        if inter.data.custom_id == "refund_modal":
-            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-                return
-            admin_level = inter.text_values['admin_level_input']
-            date_str = inter.text_values['date_input']
-            date = datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
-            price = int(inter.text_values['price_input'])
-
-            current_date = datetime.date.today()
-            days_diff = (current_date - date).days
-            percent_diff = days_diff * 0.7
-
-            guaranteed_refund = price / 3
-            remaining_price = price - guaranteed_refund
-            refund = remaining_price - (remaining_price * percent_diff / 100)
-
-            final_refund = refund + guaranteed_refund
-
-            await inter.response.send_message(f"Авто-подсчет возврата: {int(final_refund)} рублей", ephemeral=True)
 
         if inter.data.custom_id == "settings_modal":
             color = inter.text_values['color']
