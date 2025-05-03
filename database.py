@@ -118,7 +118,8 @@ class Database:
                 steamid INTEGER,
                 reason TEXT,
                 comment,
-                frozen_at TEXT
+                frozen_at TEXT,
+                image_url TEXT
             )
         """)
         self.conn.commit()
