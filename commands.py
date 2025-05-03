@@ -247,11 +247,18 @@ class Settings(commands.Cog):
         await inter.response.send_message(embed=embed, view=view)
         
 
-    @commands.slash_command(description="[STAFF] - Показать доступные быстрые команды")
+    @commands.slash_command(description="[LIMITED-ROLES] Показать доступные быстрые команды")
     async def fastcommands(self, inter):
         try:
-            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            allowed_roles = {"спонсор", "модератор серверов", "юмабой", "юмагерл"}
+            has_allowed_role = any(role.name.lower() in allowed_roles for role in inter.author.roles)
+            if not (self.check_staff_permissions(inter, "staff") or 
+                self.check_staff_permissions(inter, "dev") or 
+                has_allowed_role):
+                await inter.response.send_message(
+                    "У вас нет прав для использования этой команды", 
+                    ephemeral=True
+                )
                 logger.info(f"[COMMANDS] Пользователь {inter.author.name} пытается использовать команду /fastcommands, но не имеет прав")
                 return
             self.db.cursor.execute("SELECT command_name, description FROM fast_commands")
@@ -259,11 +266,17 @@ class Settings(commands.Cog):
             embed = disnake.Embed(title="Доступные быстрые команды", color=self.embed_color)
             for command in fast_commands:
                 embed.add_field(name=f".{command[0]}", value=command[1], inline=False)
+                
             await inter.response.send_message(embed=embed)
             logger.info(f"[COMMANDS] Пользователь {inter.author.name} успешно использовал команду /fastcommands")
+            
         except Exception as e:
-            await inter.response.send_message("Ошибка при получении списка быстрых команд", ephemeral=True)
+            await inter.response.send_message(
+                "Ошибка при получении списка быстрых команд", 
+                ephemeral=True
+            )
             logger.error(f"[COMMANDS] Ошибка при получении списка быстрых команд: {e}")
+            
 
     @commands.slash_command(description="[DEV] - Установить статус тех.работ")
     async def status(self, inter, value: int):
