@@ -219,6 +219,32 @@ class Settings(commands.Cog):
         
         await staff_settings_channel.send(embed=embed, view=view)
         await inter.response.send_message("Сообщение отправлено!", ephemeral=True)
+
+    @commands.slash_command(description="[DEV] - workshopmsg")
+    async def workshopmsg(self, inter: disnake.ApplicationCommandInteraction):
+        if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+            await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+            return
+
+        embed = disnake.Embed(
+            title="📝 Форма обращения",
+            description="Пожалуйста, выберите уровень важности вашей проблемы:",
+            color=self.embed_color
+        )
+        embed.add_field(
+            name="Уровни важности",
+            value="📣 Низкий - мелкие проблемы, не срочные вопросы\n"
+                "⚠️ Средний - важные вопросы, требующие внимания\n"
+                "🚨 Высокий - критические проблемы, требующие скорейшего решения",
+            inline=False
+        )
+        
+        view = disnake.ui.View()
+        view.add_item(disnake.ui.Button(emoji="📣", style=disnake.ButtonStyle.gray, custom_id="low_priority"))
+        view.add_item(disnake.ui.Button(emoji="⚠️", style=disnake.ButtonStyle.gray, custom_id="medium_priority"))
+        view.add_item(disnake.ui.Button(emoji="🚨", style=disnake.ButtonStyle.gray, custom_id="high_priority"))
+        
+        await inter.response.send_message(embed=embed, view=view)
         
 
     @commands.slash_command(description="[STAFF] - Показать доступные быстрые команды")
@@ -589,6 +615,53 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_button_click(self, inter):
+        if inter.data.custom_id.startswith("workshop_approve_"):
+            await inter.message.delete()
+            await inter.response.send_message(
+                f"Обращение - принято, удалил",
+                ephemeral=True
+            )
+        if inter.data.custom_id.startswith("workshop_reject_"):
+            await inter.message.delete()
+            await inter.response.send_message(
+                f"Обращение - хуйня, удалил",
+                ephemeral=True
+            )
+
+        if inter.data.custom_id in ["low_priority", "medium_priority", "high_priority"]:
+            priority_level = inter.data.custom_id.split("_")[0]
+            
+            modal = disnake.ui.Modal(
+                title=f"Обращение ({priority_level} приоритет)",
+                custom_id=f"workshop_modal_{priority_level}",
+                components=[
+                    disnake.ui.TextInput(
+                        label="Тема проблемы",
+                        placeholder="К примеру: маркет скинов",
+                        custom_id="problem_title",
+                        style=disnake.TextInputStyle.short,
+                        max_length=100,
+                        required=True
+                    ),
+                    disnake.ui.TextInput(
+                        label="Описание проблемы",
+                        placeholder="К примеру: ошибка - недостаточно средств, нужен додеп",
+                        custom_id="problem_description",
+                        style=disnake.TextInputStyle.paragraph,
+                        max_length=2000,
+                        required=True
+                    ),
+                    disnake.ui.TextInput(
+                        label="Ссылка на изображение (необязательно)",
+                        placeholder="https://example.com/image.png",
+                        custom_id="image_url",
+                        style=disnake.TextInputStyle.long,
+                        required=False
+                    )
+                ]
+            )
+            await inter.response.send_modal(modal)
+
         if inter.data.custom_id == "manage_roles":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("❌ Недостаточно прав", ephemeral=True)
@@ -624,7 +697,8 @@ class Settings(commands.Cog):
                             f"🔔 - Пинг при создании тикета\n"
                             f"📝 - Изменить ник в заголовке тикета\n"
                             f"📊 - Просмотреть активные тикеты\n\n"
-                            f"⚠️ - Уведомления о норме",
+                            f"⚠️ - Уведомления о норме\n"
+                            f"👥 - Управление ролями пользователя",
                 color=self.embed_color
             )
             await inter.message.edit(embed=embed)
@@ -861,6 +935,76 @@ class Settings(commands.Cog):
 
     @commands.Cog.listener()
     async def on_modal_submit(self, inter: disnake.ModalInteraction):
+        if inter.data.custom_id.startswith("workshop_modal_"):
+            priority_level = inter.data.custom_id.split("_")[2]
+            priority_colors = {
+                "low": disnake.Colour.blue(),
+                "medium": disnake.Colour.gold(),
+                "high": disnake.Colour.red()
+            }
+            
+            title = inter.text_values["problem_title"]
+            description = inter.text_values["problem_description"]
+            image_url = inter.text_values.get("image_url", "").strip()
+            
+            embed = disnake.Embed(
+                title=f"Тема: {title}",
+                description=description,
+                color=priority_colors[priority_level]
+            )
+            embed.set_author(name=f"Приоритет: {priority_level.capitalize()}")
+            embed.set_footer(text=f"Отправил: {inter.author.display_name}")
+            
+            view = disnake.ui.View()
+            view.add_item(disnake.ui.Button(emoji="✅", custom_id=f"workshop_approve_{inter.author.id}", style=disnake.ButtonStyle.gray))
+            view.add_item(disnake.ui.Button(emoji="💩", custom_id=f"workshop_reject_{inter.author.id}", style=disnake.ButtonStyle.gray))
+            
+            if priority_level == "high":
+                high_priority_user_id = 1352144578395766825
+                try:
+                    user = await self.bot.fetch_user(high_priority_user_id)
+                    dm_channel = await user.create_dm()
+                    
+                    if image_url:
+                        await dm_channel.send(
+                            content=f"Изображение: {image_url}",
+                            embed=embed,
+                            view=view
+                        )
+                    else:
+                        await dm_channel.send(
+                            embed=embed,
+                            view=view
+                        )
+                        
+                    await inter.response.send_message(
+                        "Ваше обращение было отправлено в личные сообщения разработчику!",
+                        ephemeral=True
+                    )
+                except Exception as e:
+                    await inter.response.send_message(
+                        "Не удалось отправить обращение. Пожалуйста, сообщите администратору.",
+                        ephemeral=True
+                    )
+                    logger.error(f"Ошибка отправки high priority сообщения: {e}")
+            else:
+                if image_url:
+                    await inter.channel.send(
+                        content=f"Изображение: {image_url}",
+                        embed=embed,
+                        view=view
+                    )
+                else:
+                    await inter.channel.send(
+                        embed=embed,
+                        view=view
+                    )
+                    
+                await inter.response.send_message(
+                    "Ваше обращение отправлено!",
+                    ephemeral=True
+                )
+                
         if inter.data.custom_id == "role_management_modal":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("❌ Недостаточно прав", ephemeral=True)
@@ -892,7 +1036,6 @@ class Settings(commands.Cog):
                 )
                 return
                 
-            # Создаем меню выбора ролей
             view = disnake.ui.View()
             select_menu = disnake.ui.Select(
                 placeholder="Выберите роль для удаления",
