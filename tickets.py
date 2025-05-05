@@ -150,7 +150,7 @@ class Tickets(commands.Cog):
         ]
         embed.add_field(name="📜 **Правила подачи обращения**",value="\n".join(rules),inline=False)
         embed.set_author(name="Yooma Support",icon_url="https://static1.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-        embed.set_footer(text="При ошибке системы тикетов напишите в дискорд -> @traquillionz")
+        embed.set_footer(text="При ошибке системы тикетов напишите в дискорд -> @tranquillionz")
 
         view = disnake.ui.View(timeout=None)
         select_menu = disnake.ui.Select(
