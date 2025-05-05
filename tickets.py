@@ -100,7 +100,7 @@ class Tickets(commands.Cog):
 
             self.db.cursor.execute("INSERT INTO banned_users (user_id, ban_time, ban_until) VALUES (?, ?, ?)", (user_id, time, ban_until_str))
             self.db.conn.commit()
-            await inter.response.send_message(f"Пользователь с айдишником {user_id} запрещен создавать обращение на {time}", ephemeral=True)
+            await inter.response.send_message(f"Пользователь с айдишником {user_id} запрещено создавать обращение на {time}", ephemeral=True)
         except ValueError:
             await inter.response.send_message("Неправильный формат времени", ephemeral=True)
 
@@ -157,9 +157,9 @@ class Tickets(commands.Cog):
             placeholder="Выберите тему обращения",
             options=[
                 disnake.SelectOption(label="Вопрос", description="Задайте свой вопрос", emoji="❓"),
+                disnake.SelectOption(label="JAIL", description="Вопросы/Жалоба только для данного режима", emoji="👮"),
                 disnake.SelectOption(label="Жалоба", description="Жалоба на нарушение игрока/администратора", emoji="⚠️"),
                 disnake.SelectOption(label="Обжалование", description="Обжалование наказания", emoji="⚖️"),
-                disnake.SelectOption(label="Предложение", description="Предложите вашу идею или улучшение", emoji="💼"),
                 disnake.SelectOption(label="Доп. услуги", description="Докупка/Перенос и другие услуги", emoji="💡"),
                 disnake.SelectOption(label="Другое", description="Остальные вопросы", emoji="🤔")
             ]
@@ -244,6 +244,18 @@ class Tickets(commands.Cog):
             if status is not None and status[0] == 1:
                 await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте создать обращение **позже**. ⚠️", ephemeral=True)
                 return
+            
+            self.db.cursor.execute("SELECT ban_until FROM banned_users WHERE user_id = ?", (inter.author.id,))
+            ban = self.db.cursor.fetchone()
+            
+            if ban:
+                ban_until = datetime.datetime.strptime(ban[0], "%d.%m.%Y %H:%M")
+                if datetime.datetime.now() < ban_until:
+                    await inter.response.send_message(
+                        f"⛔ \ Вам **запрещено** создавать обращения до `{ban[0]}`.",
+                        ephemeral=True
+                    )
+                    return
 
             await inter.response.defer(ephemeral=True)
             description = inter.text_values['description_input']
