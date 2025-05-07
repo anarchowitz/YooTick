@@ -345,7 +345,7 @@ class Tickets(commands.Cog):
                     await thread.send(f"{inter.user.mention}, В данный момент нерабочее время, и время ответа может занять больше времени, чем обычно.\nПожалуйста, оставайтесь на связи, и мы ответим вам, как только сможем.")
                     pass
 
-            info_embed = disnake.Embed(title=f"Краткая суть обращения: {self.theme}", description=description, color=0xF0C43F)
+            info_embed = disnake.Embed(title=f"Тема обращения: {self.theme}", description=description, color=0xF0C43F)
             if self.theme in ["Доп. услуги", "Обжалование"]:
                 info_embed.add_field(name="Ссылка на профиль", value=profile_link, inline=False)
             await thread.send(embed=info_embed)
