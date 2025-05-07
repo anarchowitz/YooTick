@@ -67,5 +67,9 @@ async def run_schedule(bot):
         target_time = now.replace(hour=18, minute=0, second=0, microsecond=0)
         if now >= target_time:
             target_time += datetime.timedelta(days=1)
-        await asyncio.sleep((target_time - now).total_seconds())
-        await job(bot)
+        wait_seconds = (target_time - now).total_seconds()
+        await asyncio.sleep(wait_seconds)
+        try:
+            await job(bot)
+        except Exception as e:
+            print(f"Ошибка при выполнении задачи: {e}")
