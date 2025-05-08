@@ -719,28 +719,28 @@ class Settings(commands.Cog):
             )
             await inter.response.send_modal(modal)
             self.bot.add_modal_handler(self.ticket_name_modal_callback)
-
+        elif inter.data.custom_id == "ping":
+            self.db.cursor.execute("SELECT mention FROM staff_list WHERE username = ?", (inter.author.name,))
+            mention = self.db.cursor.fetchone()
+            if mention is not None:
+                mention = mention[0]
+                if mention == 0:
+                    self.db.cursor.execute("UPDATE staff_list SET mention = 1 WHERE username = ?", (inter.author.name,))
+                else:
+                    self.db.cursor.execute("UPDATE staff_list SET mention = 0 WHERE username = ?", (inter.author.name,))
+                self.db.conn.commit()
+                await inter.response.send_message(f"Пинг при создании тикета включен для {inter.author.mention}" if mention == 0 else f"Пинг при создании тикета выключен для {inter.author.mention}", ephemeral=True)
         elif inter.data.custom_id == "daily_quota":
-            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
-                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
-                return
-            
             self.db.cursor.execute("SELECT daily_quota FROM staff_list WHERE username = ?", (inter.author.name,))
-            current_quota = self.db.cursor.fetchone()
-            
-            if current_quota is None:
-                await inter.response.send_message("Вы не найдены в списке сотрудников!", ephemeral=True)
-                return
-            
-            new_quota = 0 if current_quota[0] == 1 else 1
-            self.db.cursor.execute("UPDATE staff_list SET daily_quota = ? WHERE username = ?", (new_quota, inter.author.name))
-            self.db.conn.commit()
-            
-            status = "включена" if new_quota == 1 else "выключена"
-            await inter.response.send_message(
-                f"Информация о невыполненной норме {status} для {inter.author.mention}", 
-                ephemeral=True
-            )
+            daily_quota = self.db.cursor.fetchone()
+            if daily_quota is not None:
+                daily_quota = daily_quota[0]
+                if daily_quota == 0:
+                    self.db.cursor.execute("UPDATE staff_list SET daily_quota = 1 WHERE username = ?", (inter.author.name,))
+                else:
+                    self.db.cursor.execute("UPDATE staff_list SET daily_quota = 0 WHERE username = ?", (inter.author.name,))
+                self.db.conn.commit()
+                await inter.response.send_message(f"Пинг в 18:00 (MSK) при невыполненнии нормы включен для {inter.author.mention}" if daily_quota == 0 else f"Пинг в 18:00 (MSK) при невыполненнии нормы выключен для {inter.author.mention}", ephemeral=True)
 
         elif inter.data.custom_id == "active_tickets":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
