@@ -1,6 +1,6 @@
 import datetime
-import asyncio
 import disnake
+import aiocron
 from database import Database
 
 db = Database("database.db")
@@ -29,7 +29,8 @@ async def send_warning(user, closed_tickets):
     except disnake.HTTPException as e:
         print(f"Ошибка при отправке сообщения пользователю {user.id}: {e}")
 
-async def job(bot):
+async def check_tickets_job(bot):
+    print("Запуск проверки тикетов...")
     today = datetime.date.today().strftime("%d.%m.%Y")
     query = """
         SELECT 
@@ -48,28 +49,22 @@ async def job(bot):
 
     for user_id, closed_tickets in staff_members:
         if closed_tickets >= 8:
+            print(f"Пользователь {user_id} выполнил норму ({closed_tickets}/8)")
             continue
 
         try:
             user = await bot.fetch_user(user_id)
+            await send_warning(user, closed_tickets)
         except disnake.NotFound:
             print(f"Пользователь с ID {user_id} не найден")
-            continue
         except disnake.HTTPException as e:
             print(f"Ошибка получения пользователя {user_id}: {e}")
-            continue
 
-        await send_warning(user, closed_tickets)
-
-async def run_schedule(bot):
-    while True:
-        now = datetime.datetime.now()
-        target_time = now.replace(hour=18, minute=0, second=0, microsecond=0)
-        if now >= target_time:
-            target_time += datetime.timedelta(days=1)
-        wait_seconds = (target_time - now).total_seconds()
-        await asyncio.sleep(wait_seconds)
+def setup_scheduler(bot):
+    @aiocron.crontab('0 18 * * *', start=False)  # Каждый день в 18:00
+    async def ticket_check_cron():
         try:
-            await job(bot)
+            await check_tickets_job(bot)
         except Exception as e:
-            print(f"Ошибка при выполнении задачи: {e}")
+            print(f"Ошибка в cron-задаче: {e}")
+    ticket_check_cron.start()
