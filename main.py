@@ -5,21 +5,21 @@ from tickets import setuptickets
 from commands import setupcommands
 from fastcommands import setupfastcommands
 from freeze import setupfreeze
-from notifications import run_schedule
+from notifications import setup_scheduler
 from moderator import setupmoderator
 
 intents = disnake.Intents.default() 
 intents.message_content = True
 intents.guilds = True
 intents.members = True
-version = "3.5.8.5"
+version = "3.5.8.51"
 bot = commands.Bot(command_prefix="/", intents=intents, activity=disnake.Activity(type=disnake.ActivityType.listening, name=f"yooma.su | v{version}"))
 
 db = Database("database.db")
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user} запущен\n Версия: {version}\n Пользователей: {len(bot.users)}\n Время запуска: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n_________________")
+    print(f"{bot.user} запущен\n Версия: {version}\n Пользователей на сервере: {len(bot.users)}\n Время запуска: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n_________________")
     db.create_settings_table()
     db.create_price_list_table()
     db.create_staff_list_table()
@@ -51,8 +51,8 @@ if __name__ == "__main__":
     setupfastcommands(bot)
     setupfreeze(bot)
     setupmoderator(bot)
+    setup_scheduler(bot)
     with open('yootoken.txt', 'r') as file:
         lines = file.readlines()
         token = lines[0].strip()
-    bot.loop.create_task(run_schedule(bot))
     bot.run(token)
