@@ -244,7 +244,9 @@ class Settings(commands.Cog):
         view.add_item(disnake.ui.Button(emoji="⚠️", style=disnake.ButtonStyle.gray, custom_id="medium_priority"))
         view.add_item(disnake.ui.Button(emoji="🚨", style=disnake.ButtonStyle.gray, custom_id="high_priority"))
         
-        await inter.response.send_message(embed=embed, view=view)
+        message = await inter.channel.send(embed=embed, view=view)
+        await message.pin()
+
         
 
     @commands.slash_command(description="[LIMITED-ROLES] Показать доступные быстрые команды")
@@ -601,15 +603,55 @@ class Settings(commands.Cog):
     @commands.Cog.listener()
     async def on_button_click(self, inter):
         if inter.data.custom_id.startswith("workshop_approve_"):
-            await inter.message.delete()
+            if not self.check_staff_permissions(inter, "dev"):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            original_message = await inter.channel.fetch_message(inter.message.id)
+            async for message in inter.channel.history(limit=100):
+                if message.reference and message.reference.message_id == original_message.id:
+                    await message.delete()
+
+            try:
+                user_id = int(inter.data.custom_id.split("_")[2])
+                user = await self.bot.fetch_user(user_id)
+                embed = disnake.Embed(
+                    title="✅ Ваше обращение рассмотрено",
+                    description="Ваше обращение было выполненно Лешкой!.",
+                    color=disnake.Color.green()
+                )
+                await user.send(embed=embed)
+            except Exception as e:
+                logger.error(f"Ошибка при отправке уведомления пользователю: {e}")
+            
+            await original_message.delete()
             await inter.response.send_message(
                 f"Обращение - принято, удалил",
                 ephemeral=True
             )
+
         if inter.data.custom_id.startswith("workshop_reject_"):
-            await inter.message.delete()
+            if not self.check_staff_permissions(inter, "dev"):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            original_message = await inter.channel.fetch_message(inter.message.id)
+            async for message in inter.channel.history(limit=100):
+                if message.reference and message.reference.message_id == original_message.id:
+                    await message.delete()
+            try:
+                user_id = int(inter.data.custom_id.split("_")[2])
+                user = await self.bot.fetch_user(user_id)
+                embed = disnake.Embed(
+                    title="❌ Ваше обращение отклонено",
+                    description="Ваше обращение было помечено говном. Вы были обосанны Алексеем..",
+                    color=disnake.Color.red()
+                )
+                await user.send(embed=embed)
+            except Exception as e:
+                logger.error(f"Ошибка при отправке уведомления пользователю: {e}")
+            
+            await original_message.delete()
             await inter.response.send_message(
-                f"Обращение - хуйня, удалил",
+                f"Обращение - отклонено, удалил",
                 ephemeral=True
             )
 
@@ -983,13 +1025,13 @@ class Settings(commands.Cog):
                     dm_channel = await user.create_dm()
                     
                     if image_url:
-                        await dm_channel.send(
+                        message = await dm_channel.send(
                             content=f"Изображение: {image_url}",
                             embed=embed,
                             view=view
                         )
                     else:
-                        await dm_channel.send(
+                        message = await dm_channel.send(
                             embed=embed,
                             view=view
                         )
@@ -1006,19 +1048,27 @@ class Settings(commands.Cog):
                     logger.error(f"Ошибка отправки high priority сообщения: {e}")
             else:
                 if image_url:
-                    await inter.channel.send(
+                    message = await inter.channel.send(
                         content=f"Изображение: {image_url}",
                         embed=embed,
                         view=view
                     )
                 else:
-                    await inter.channel.send(
+                    message = await inter.channel.send(
                         embed=embed,
                         view=view
                     )
-                    
+                
+                if priority_level in ["low", "medium"]:
+                    try:
+                        await message.pin()
+                        logger.info(f"Закреплено обращение {message.id} с приоритетом {priority_level}")
+                    except Exception as e:
+                        logger.error(f"Ошибка при закреплении сообщения: {e}")
+                        
                 await inter.response.send_message(
-                    "Ваше обращение отправлено!",
+                    "Ваше обращение отправлено!" + 
+                    (" Сообщение закреплено в канале." if priority_level in ["low", "medium"] else ""),
                     ephemeral=True
                 )
                 
@@ -1186,7 +1236,6 @@ class Settings(commands.Cog):
             await inter.response.send_message("❌ Пользователь или роль не найдены", ephemeral=True)
             return
         
-        # Проверяем, является ли роль защищенной
         if self.is_protected_role(role):
             await inter.response.send_message(
                 f"❌ Роль {role.name} защищена и не может быть удалена!",
