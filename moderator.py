@@ -39,7 +39,6 @@ class Moderator(commands.Cog):
             r"porn", # 18+
             r"sex", # 18+
             r"xxx", # 18+
-            r"nsfw", # 18+
             r"порно", # 18+
             r"секс", # 18+
             r"оргазм", # 18+
@@ -63,7 +62,14 @@ class Moderator(commands.Cog):
             r"naimfree", # keyword
             r"rawetrip", # keyword
             r"tenor\.com", # link
-            r"yooma\.su" # link
+            r"yooma\.su", # link
+            r"mvd\.ru", # link
+            r"steamcommunity\.com", # link
+            r"t\.me", # link
+            r"cdn\.discordapp\.com", # link
+            r"steampowered\.com", # link
+            r"discord\.com", # link
+            r"media\.discordapp\.net" # link
         ]
         self.url_pattern = re.compile(r'https?://\S+', re.IGNORECASE)
         self.patterns = [re.compile(keyword, re.IGNORECASE) for keyword in self.keywords]
@@ -155,17 +161,27 @@ class Moderator(commands.Cog):
         
         urls = self.url_pattern.findall(message.content)
         if urls:
-            dev_channel_id = dev_channel_id[0]
-            try:
-                report_channel = await self.bot.fetch_channel(dev_channel_id)
-                if report_channel:
-                    await report_channel.send(
-                        f"Пользователь {message.author.mention} отправил подозрительную ссылку!\n"
-                        f"Канал: {message.channel.mention}\n"
-                        f"Сообщение: ```{message.content[:1000]}```",
-                    )
-            except Exception as e:
-                logger.error(f"Ошибка при отправке ссылок в канал отчетов: {e}")
+            whitelisted = False
+            for url in urls:
+                for whitelist_pattern in self.whitelist_patterns:
+                    if whitelist_pattern.search(url):
+                        whitelisted = True
+                        break
+                if whitelisted:
+                    break
+            
+            if not whitelisted and dev_channel_id:
+                dev_channel_id = dev_channel_id[0]
+                try:
+                    report_channel = await self.bot.fetch_channel(dev_channel_id)
+                    if report_channel:
+                        await report_channel.send(
+                            f"Пользователь {message.author.mention} отправил подозрительную ссылку!\n"
+                            f"Канал: {message.channel.mention}\n"
+                            f"Сообщение: ```{message.content[:1000]}```",
+                        )
+                except Exception as e:
+                    logger.error(f"Ошибка при отправке ссылок в канал отчетов: {e}")
         
         for whitelist_pattern in self.whitelist_patterns:
             if whitelist_pattern.search(message.content):
