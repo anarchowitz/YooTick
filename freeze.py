@@ -66,12 +66,12 @@ class Freeze(commands.Cog):
     async def on_button_click(self, inter):
         try:
             if inter.data.custom_id == "take_freeze":
-                freeze_data = self.freeze_data.get(inter.message.id)
-                if not freeze_data:
-                    await inter.response.send_message("Данные для заморозки не найдены или устарели", ephemeral=True)
-                    return
-                
                 async with self.lock:
+                    freeze_data = self.freeze_data.get(inter.message.id)
+                    if not freeze_data:
+                        await inter.response.send_message("Данные для заморозки не найдены или устарели", ephemeral=True)
+                        return
+                
                     try:
                         self.db.cursor.execute("""
                             INSERT INTO freeze_users 
