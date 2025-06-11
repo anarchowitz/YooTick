@@ -45,7 +45,15 @@ class FastCommand(commands.Cog):
             if result:
                 await message.delete()
                 response = result[0].replace("{author}", message.author.name)
-                await message.channel.send(response)
+                if message.reference and message.reference.message_id:
+                    try:
+                        replied_message = await message.channel.fetch_message(message.reference.message_id)
+                        await replied_message.reply(response)
+                    except disnake.NotFound:
+                        await message.channel.send(response)
+                else:
+                    await message.channel.send(response)
+                    
                 logger.info(f"[FCOMMAND] Быстрая команда - '{command}' использована пользователем {message.author.name}")
             else:
                 logger.info(f"[FCOMMAND] Неизвестная команда '{command}' использована пользователем {message.author.name}")
