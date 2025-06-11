@@ -200,22 +200,24 @@ class Settings(commands.Cog):
             title="Помощник по тикетам",
             description=f"Активные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n"
                         f"🔄 - Обновить информацию по тикетам\n"
-                        f"🔔 - Пинг при создании тикета\n"
+                        f"⚠️ - Уведомления о норме\n"
                         f"📝 - Изменить ник в заголовке тикета\n"
                         f"📊 - Просмотреть активные тикеты\n\n"
-                        f"⚠️ - Уведомления о норме\n"
-                        f"👥 - Управление ролями пользователя",
+                        f"👥 - Управление ролями пользователя\n"
+                        f"🗑️ - Автоматическое удаление из чужого взятого тикета\n"
+                        f"🔔 - Пинг при создании тикета",
             color=self.embed_color
         )
         embed.set_author(name='Yooma Support', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
         
         view = disnake.ui.View()
         view.add_item(disnake.ui.Button(emoji="🔄", custom_id="update_staff_settings", style=disnake.ButtonStyle.gray))
-        view.add_item(disnake.ui.Button(emoji="🔔", custom_id="ping", style=disnake.ButtonStyle.gray))
+        view.add_item(disnake.ui.Button(emoji="⚠️", custom_id="daily_quota", style=disnake.ButtonStyle.gray))
         view.add_item(disnake.ui.Button(emoji="📝", custom_id="ticket_name", style=disnake.ButtonStyle.gray))
         view.add_item(disnake.ui.Button(emoji="📊", custom_id="active_tickets", style=disnake.ButtonStyle.gray))
-        view.add_item(disnake.ui.Button(emoji="⚠️", custom_id="daily_quota", style=disnake.ButtonStyle.gray, row=1))
         view.add_item(disnake.ui.Button(emoji="👥", custom_id="manage_roles", style=disnake.ButtonStyle.gray, row=1))
+        view.add_item(disnake.ui.Button(emoji="🗑️", custom_id="remove_after_take", style=disnake.ButtonStyle.gray, row=1))
+        view.add_item(disnake.ui.Button(emoji="🔔", custom_id="ping", style=disnake.ButtonStyle.gray))
         
         await staff_settings_channel.send(embed=embed, view=view)
         await inter.response.send_message("Сообщение отправлено!", ephemeral=True)
@@ -720,27 +722,17 @@ class Settings(commands.Cog):
             embed = disnake.Embed(
                 title="Помощник по тикетам",
                 description=f"Активные: **{len(all_tickets)}**\nСвободные тикеты: **{len(free_tickets)}**\n\n"
-                            f"🔄 - Обновить информацию по тикетам\n"
-                            f"🔔 - Пинг при создании тикета\n"
-                            f"📝 - Изменить ник в заголовке тикета\n"
-                            f"📊 - Просмотреть активные тикеты\n\n"
-                            f"⚠️ - Уведомления о норме\n"
-                            f"👥 - Управление ролями пользователя",
+                        f"🔄 - Обновить информацию по тикетам\n"
+                        f"⚠️ - Уведомления о норме\n"
+                        f"📝 - Изменить ник в заголовке тикета\n"
+                        f"📊 - Просмотреть активные тикеты\n\n"
+                        f"👥 - Управление ролями пользователя\n"
+                        f"🗑️ - Автоматическое удаление из чужого взятого тикета\n"
+                        f"🔔 - Пинг при создании тикета",
                 color=self.embed_color
             )
             await inter.message.edit(embed=embed)
             await inter.response.defer()
-        elif inter.data.custom_id == "ping":
-            self.db.cursor.execute("SELECT mention FROM staff_list WHERE username = ?", (inter.author.name,))
-            mention = self.db.cursor.fetchone()
-            if mention is not None:
-                mention = mention[0]
-                if mention == 0:
-                    self.db.cursor.execute("UPDATE staff_list SET mention = 1 WHERE username = ?", (inter.author.name,))
-                else:
-                    self.db.cursor.execute("UPDATE staff_list SET mention = 0 WHERE username = ?", (inter.author.name,))
-                self.db.conn.commit()
-                await inter.response.send_message(f"Пинг при создании тикета включен для {inter.author.mention}" if mention == 0 else f"Пинг при создании тикета выключен для {inter.author.mention}", ephemeral=True)
         elif inter.data.custom_id == "ticket_name":
             if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
                 await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
@@ -761,17 +753,6 @@ class Settings(commands.Cog):
             )
             await inter.response.send_modal(modal)
             self.bot.add_modal_handler(self.ticket_name_modal_callback)
-        elif inter.data.custom_id == "ping":
-            self.db.cursor.execute("SELECT mention FROM staff_list WHERE username = ?", (inter.author.name,))
-            mention = self.db.cursor.fetchone()
-            if mention is not None:
-                mention = mention[0]
-                if mention == 0:
-                    self.db.cursor.execute("UPDATE staff_list SET mention = 1 WHERE username = ?", (inter.author.name,))
-                else:
-                    self.db.cursor.execute("UPDATE staff_list SET mention = 0 WHERE username = ?", (inter.author.name,))
-                self.db.conn.commit()
-                await inter.response.send_message(f"Пинг при создании тикета включен для {inter.author.mention}" if mention == 0 else f"Пинг при создании тикета выключен для {inter.author.mention}", ephemeral=True)
         elif inter.data.custom_id == "daily_quota":
             self.db.cursor.execute("SELECT daily_quota FROM staff_list WHERE username = ?", (inter.author.name,))
             daily_quota = self.db.cursor.fetchone()
@@ -801,6 +782,30 @@ class Settings(commands.Cog):
                 await inter.response.send_message(embed=embed, ephemeral=True)
             else:
                 await inter.response.send_message("У вас нет активных тикетов", ephemeral=True)
+
+        elif inter.data.custom_id == "remove_after_take":
+            self.db.cursor.execute("SELECT remove_after_take FROM staff_list WHERE username = ?", (inter.author.name,))
+            remove_after_take = self.db.cursor.fetchone()
+            if remove_after_take is not None:
+                remove_after_take = remove_after_take[0]
+                if remove_after_take == 0:
+                    self.db.cursor.execute("UPDATE staff_list SET remove_after_take = 1 WHERE username = ?", (inter.author.name,))
+                else:
+                    self.db.cursor.execute("UPDATE staff_list SET remove_after_take = 0 WHERE username = ?", (inter.author.name,))
+                self.db.conn.commit()
+                await inter.response.send_message(f"Автоматическое удаление тикета, когда он был взят кем-то другим включен для {inter.author.mention}" if remove_after_take == 0 else f"Автоматическое удаление тикета, когда он был взят кем-то другим выключен для {inter.author.mention}", ephemeral=True)
+
+        elif inter.data.custom_id == "ping":
+            self.db.cursor.execute("SELECT mention FROM staff_list WHERE username = ?", (inter.author.name,))
+            mention = self.db.cursor.fetchone()
+            if mention is not None:
+                mention = mention[0]
+                if mention == 0:
+                    self.db.cursor.execute("UPDATE staff_list SET mention = 1 WHERE username = ?", (inter.author.name,))
+                else:
+                    self.db.cursor.execute("UPDATE staff_list SET mention = 0 WHERE username = ?", (inter.author.name,))
+                self.db.conn.commit()
+                await inter.response.send_message(f"Пинг при создании тикета включен для {inter.author.mention}" if mention == 0 else f"Пинг при создании тикета выключен для {inter.author.mention}", ephemeral=True)
 
         if inter.data.custom_id == "left":
             if not self.check_staff_permissions(inter, "dev"):
