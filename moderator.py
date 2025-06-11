@@ -35,23 +35,6 @@ class Moderator(commands.Cog):
             r"DM me", # spam
             r"@everyone" # spam / mention all
         ]
-        self.nsfw_keywords = [
-            r"porn", # 18+
-            r"sex", # 18+
-            r"xxx", # 18+
-            r"порно", # 18+
-            r"секс", # 18+
-            r"оргазм", # 18+
-            r"кримпат", # 18+
-            r"кримпатч", # 18+
-            r"crim", # 18+
-            r"crimpat", # 18+
-            r"gayporno", # 18+
-            r"lesbian", # 18+
-            r"dick", # 18+
-            r"vagina", # 18+
-            r"crimpatch" # 18+
-        ]
         self.whitelist = [
             r"free ping", # keyword
             r"freeping", # keyword
@@ -61,19 +44,8 @@ class Moderator(commands.Cog):
             r"freeqn", # keyword
             r"naimfree", # keyword
             r"rawetrip", # keyword
-            r"tenor\.com", # link
-            r"yooma\.su", # link
-            r"mvd\.ru", # link
-            r"steamcommunity\.com", # link
-            r"t\.me", # link
-            r"cdn\.discordapp\.com", # link
-            r"steampowered\.com", # link
-            r"discord\.com", # link
-            r"media\.discordapp\.net" # link
         ]
-        self.url_pattern = re.compile(r'https?://\S+', re.IGNORECASE)
         self.patterns = [re.compile(keyword, re.IGNORECASE) for keyword in self.keywords]
-        self.nsfw_patterns = [re.compile(keyword, re.IGNORECASE) for keyword in self.nsfw_keywords]
         self.whitelist_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in self.whitelist]
 
     async def check_message(self, message):
@@ -89,99 +61,6 @@ class Moderator(commands.Cog):
             return False
         if message.author.bot:
             return False
-            
-        for nsfw_pattern in self.nsfw_patterns:
-            if nsfw_pattern.search(message.content):
-                try:
-                    await message.delete()
-                except disnake.NotFound:
-                    logger.warning(f"Сообщение {message.id} уже удалено")
-                    return True
-                except disnake.Forbidden:
-                    logger.error(f"Нет прав для удаления сообщения {message.id}")
-                    return True
-                
-                await message.channel.send("**[Anti-NSFW]** Пользователь был **наказан** за 18+ контент!", delete_after=5)
-                logger.info(f"[FCOMMAND] Сообщение {message.id} удалено за 18+ контент!")
-                
-                embed = disnake.Embed(
-                    title="Нарушение правил чата",
-                    description="Ваше сообщение содержало **18+ контент**.",
-                    color=0xFF3030
-                )
-                embed.add_field(
-                    name="Принятая мера",
-                    value="Вам выдан **мут на 6 часов**",
-                    inline=False
-                )
-                embed.add_field(
-                    name="> Что делать?",
-                    value="• Если это ошибка - обратитесь к <@1352144578395766825> в личные сообщения с пометкой (#ботмут)\n• Ожидайте ответа",
-                    inline=False
-                )
-                embed.set_footer(text="Пожалуйста, соблюдайте правила нашего сообщества")
-                embed.set_author(name='Yooma Anti-NSFW', icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
-                
-                try:
-                    await message.author.send(embed=embed)
-                except disnake.HTTPException as e:
-                    if e.status == 403:
-                        logger.error(f"[FCOMMAND] Не удалось отправить сообщение пользователю {message.author.id} из-за блокировки личных сообщений")
-                
-                try:
-                    await message.author.timeout(duration=21600, reason="[Anti-NSFW] - Detected 18+ content")
-                except disnake.Forbidden:
-                    logger.error(f"Нет прав для выдачи таймаута пользователю {message.author.id}")
-                    return True
-                
-                button = disnake.ui.Button(
-                    label="Размутить", 
-                    style=disnake.ButtonStyle.green, 
-                    custom_id=f"unmute_{message.author.id}_{message.channel.id}"
-                )
-                view = disnake.ui.View()
-                view.add_item(button)
-                
-                if dev_channel_id is not None:
-                    dev_channel_id = dev_channel_id[0]
-                    try:
-                        channel = await self.bot.fetch_channel(dev_channel_id)
-                        await channel.send(
-                            f"Пользователь {message.author.mention} получил таймаут на 6 часов за 18+ контент!\n"
-                            f"Канал: {message.channel.mention}\n"
-                            f"Сообщение: ```{message.content}```",
-                            view=view
-                        )
-                    except disnake.NotFound:
-                        logger.error(f"Канал с ID {dev_channel_id} не найден")
-                    except disnake.Forbidden:
-                        logger.error(f"Нет прав для отправки сообщений в канал {dev_channel_id}")
-                
-                return True
-        
-        urls = self.url_pattern.findall(message.content)
-        if urls:
-            whitelisted = False
-            for url in urls:
-                for whitelist_pattern in self.whitelist_patterns:
-                    if whitelist_pattern.search(url):
-                        whitelisted = True
-                        break
-                if whitelisted:
-                    break
-            
-            if not whitelisted and dev_channel_id:
-                dev_channel_id = dev_channel_id[0]
-                try:
-                    report_channel = await self.bot.fetch_channel(dev_channel_id)
-                    if report_channel:
-                        await report_channel.send(
-                            f"Пользователь {message.author.mention} отправил подозрительную ссылку!\n"
-                            f"Канал: {message.channel.mention}\n"
-                            f"Сообщение: ```{message.content[:1000]}```",
-                        )
-                except Exception as e:
-                    logger.error(f"Ошибка при отправке ссылок в канал отчетов: {e}")
         
         for whitelist_pattern in self.whitelist_patterns:
             if whitelist_pattern.search(message.content):
