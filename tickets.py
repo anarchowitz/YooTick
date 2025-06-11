@@ -2,9 +2,10 @@ import disnake, asyncio, datetime, logging
 from disnake.ext import commands
 from database import Database
 
-
 logger = logging.getLogger('bot')
 logger.setLevel(logging.INFO)
+
+template_channel_id = 1358463411427606780
 
 class Tickets(commands.Cog):
     def __init__(self, bot):
@@ -12,7 +13,6 @@ class Tickets(commands.Cog):
         self.db = Database("database.db")
         self.lock = asyncio.Lock()
         
-    
     @staticmethod
     def check_staff_permissions(inter, required_role):
         db = Database("database.db")
@@ -252,7 +252,7 @@ class Tickets(commands.Cog):
                 ban_until = datetime.datetime.strptime(ban[0], "%d.%m.%Y %H:%M")
                 if datetime.datetime.now() < ban_until:
                     await inter.response.send_message(
-                        f"⛔ \ Вам **запрещено** создавать обращения до `{ban[0]}`.",
+                        f"⛔ \ Вам **запрещено** создавать обращения до `{ban[0]}`.", # type: ignore
                         ephemeral=True
                     )
                     return
@@ -274,19 +274,30 @@ class Tickets(commands.Cog):
                     if profile_link.startswith(profile):
                         break
                 else:
-                    await inter.followup.send("⛔ \ **Неправильно** введена ссылка на профиль. Пример: https://yooma.su/ru/profile/admin", ephemeral=True)
+                    await inter.followup.send("⛔ \ **Неправильно** введена ссылка на профиль. Пример: https://yooma.su/ru/profile/admin", ephemeral=True) # type: ignore
                     return
 
             self.db.cursor.execute("SELECT counter_tickets FROM settings WHERE guild_id = ?", (inter.guild.id,))
             counter_tickets = self.db.cursor.fetchone()[0]
             self.db.cursor.execute("UPDATE settings SET counter_tickets = ? WHERE guild_id = ?", (counter_tickets + 1, inter.guild.id))
             self.db.conn.commit()
-            thread = await inter.channel.create_thread(name=f"ticket-{counter_tickets + 1}", type=disnake.ChannelType.private_thread)
-            await thread.edit(invitable=False, auto_archive_duration=disnake.ThreadArchiveDuration.week)
+            
+            self.db.cursor.execute("SELECT category_id FROM settings WHERE guild_id = ?", (inter.guild.id,))
+            category_id = self.db.cursor.fetchone()[0]
+            category = inter.guild.get_channel(category_id)
+        
+            template_channel = inter.guild.get_channel(template_channel_id)
+            channel = await template_channel.clone(
+                name=f"ticket-{counter_tickets + 1}",
+                category=category
+            )
 
-            thread_number = int(thread.name.split("-")[1])
-            self.db.cursor.execute("INSERT INTO created_tickets (thread_id, creator_username, creator_id, thread_number) VALUES (?, ?, ?, ?)",
-                                    (thread.id, inter.author.name, inter.author.id, thread_number))
+            overwrite = disnake.PermissionOverwrite(read_messages=True,send_messages=True,attach_files=True,add_reactions=True,read_message_history=True)
+            await channel.set_permissions(inter.author, overwrite=overwrite)
+
+            ticket_number = int(channel.name.split("-")[1])
+            self.db.cursor.execute("INSERT INTO created_tickets (channel_id, creator_username, creator_id, ticket_number) VALUES (?, ?, ?, ?)",
+                                    (channel.id, inter.author.name, inter.author.id, ticket_number))
             self.db.conn.commit()
 
             self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
@@ -312,24 +323,27 @@ class Tickets(commands.Cog):
             view = disnake.ui.View(timeout=None)
             take_button = disnake.ui.Button(label="Взять обращение", emoji="📝", custom_id="take_ticket", style=disnake.ButtonStyle.primary)
             close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
+            add_ticket_button = disnake.ui.Button(label="Добавить человека в тикет", emoji="➕", custom_id="add_ticket", style=disnake.ButtonStyle.primary)
             view.add_item(take_button)
             view.add_item(close_button)
+            view.add_item(add_ticket_button)
+            
 
             self.db.cursor.execute("SELECT mention, user_id FROM staff_list WHERE mention = 1")
             results = self.db.cursor.fetchall()
-
+            
             ping_message = ""
             for result in results:
                 user_id = result[1]
                 ping_message += f"<@{user_id}> "
 
             if ping_message:
-                mention = await thread.send(ping_message)
+                mention = await channel.send(ping_message)
                 await mention.delete()
             else:
                 pass
 
-            await thread.send(inter.user.mention, embed=ticket_embed, view=view)
+            await channel.send(inter.user.mention, embed=ticket_embed, view=view)
 
             self.db.cursor.execute("SELECT primetime FROM settings WHERE guild_id = ?", (inter.guild.id,))
             primetime = self.db.cursor.fetchone()
@@ -342,15 +356,14 @@ class Tickets(commands.Cog):
                 current_hour = current_time.hour
                 current_minute = current_time.minute
                 if not (start_hour <= current_hour < end_hour or (current_hour == end_hour and current_minute <= end_minute)):
-                    await thread.send(f"{inter.user.mention}, В данный момент нерабочее время, и время ответа может занять больше времени, чем обычно.\nПожалуйста, оставайтесь на связи, и мы ответим вам, как только сможем.")
-                    pass
+                    await channel.send(f"{inter.user.mention}, В данный момент нерабочее время, и время ответа может занять больше времени, чем обычно.\nПожалуйста, оставайтесь на связи, и мы ответим вам, как только сможем.")
 
             info_embed = disnake.Embed(title=f"Тема обращения: {self.theme}", description=description, color=0xF0C43F)
             if self.theme in ["Доп. услуги", "Обжалование"]:
                 info_embed.add_field(name="Ссылка на профиль", value=profile_link, inline=False)
-            await thread.send(embed=info_embed)
+            await channel.send(embed=info_embed)
 
-            await inter.followup.send(rf":tickets:  \ **Ваше обращение был создано** - {thread.mention}", ephemeral=True)
+            await inter.followup.send(rf":tickets:  \ **Ваше обращение был создано** - {channel.mention}", ephemeral=True)
 
     @commands.Cog.listener()
     async def on_button_click(self, inter):
@@ -365,12 +378,12 @@ class Tickets(commands.Cog):
                     self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
                     status = self.db.cursor.fetchone()
                     if status is not None and status[0] == 1:
-                        await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте взять обращение **позже**. ⚠️", ephemeral=True)
+                        await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте взять обращение **позже**. ⚠️", ephemeral=True) # type: ignore
                         return
 
                     await inter.response.defer()
 
-                    self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                    self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
                     taken_ticket = self.db.cursor.fetchone()
                     if taken_ticket is not None and taken_ticket[0] is not None:
                         await inter.response.send_message("Это обращение уже взято!", ephemeral=True)
@@ -400,18 +413,20 @@ class Tickets(commands.Cog):
                     view = disnake.ui.View(timeout=None)
                     close_button = disnake.ui.Button(label="Закрыть обращение", emoji="🔒", custom_id="close_ticket", style=disnake.ButtonStyle.danger)
                     transfer_button = disnake.ui.Button(label="Передать обращение", emoji="📝", custom_id="transfer_ticket", style=disnake.ButtonStyle.primary)
+                    add_ticket_button = disnake.ui.Button(label="Добавить человека в тикет", emoji="➕", custom_id="add_ticket", style=disnake.ButtonStyle.primary)
                     view.add_item(close_button)
                     view.add_item(transfer_button)
+                    view.add_item(add_ticket_button)
 
                     await inter.edit_original_response(embed=ticket_embed, view=view)
 
-                    self.db.cursor.execute("SELECT thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                    thread_number = self.db.cursor.fetchone()[0]
+                    self.db.cursor.execute("SELECT ticket_number FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
+                    ticket_number = self.db.cursor.fetchone()[0]
 
                     embed = disnake.Embed(title="", description=f"Успешно взялся за обращение - {inter.author.mention}", color=0xF0C43F)
                     await inter.followup.send(embed=embed)
 
-                    self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", (inter.author.name, inter.channel.id))
+                    self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE channel_id = ?", (inter.author.name, inter.channel.id))
                     self.db.conn.commit()
 
                     self.db.cursor.execute("SELECT ticket_name FROM staff_list WHERE username = ?", (inter.author.name,))
@@ -420,8 +435,19 @@ class Tickets(commands.Cog):
                         ticket_name = ticket_name[0]
                     else:
                         ticket_name = taken_username
-                    new_name = f"{ticket_name}-ticket-{thread_number}"
+                    new_name = f"{ticket_name}-ticket-{ticket_number}"
                     await inter.channel.edit(name=new_name)
+                    
+                    self.db.cursor.execute('SELECT username FROM staff_list WHERE remove_after_take = "1"')
+                    removeaftertake = self.db.cursor.fetchall()
+                    taken_username = self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE channel_id = ?", (inter.channel.id,)).fetchone()[0]
+                    for user_record in removeaftertake:
+                        username = user_record[0]
+                        if username != taken_username:
+                            member = inter.guild.get_member_named(username)
+                            if member:
+                                overwrite = disnake.PermissionOverwrite(view_channel=False)
+                                await inter.channel.set_permissions(member, overwrite=overwrite)
 
                 except Exception as e:
                     logger.error(f"Ошибка при взятии тикета {inter.channel.name}: {e}")
@@ -431,7 +457,7 @@ class Tickets(commands.Cog):
                 self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
                 status = self.db.cursor.fetchone()
                 if status is not None and status[0] == 1:
-                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть обращение **позже**. ⚠️", ephemeral=True)
+                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть обращение **позже**. ⚠️", ephemeral=True) # type: ignore
                     return
                 logger.info(f"[TICKETS] Пользователь {inter.author.name} пытается закрыть тикет {inter.channel.name}")
                 confirmation_embed = disnake.Embed(
@@ -459,7 +485,7 @@ class Tickets(commands.Cog):
                 self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
                 status = self.db.cursor.fetchone()
                 if status is not None and status[0] == 1:
-                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть обращение **позже**. ⚠️", ephemeral=True)
+                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть обращение **позже**. ⚠️", ephemeral=True) # type: ignore
                     return
                 
                 await inter.message.delete()
@@ -467,7 +493,7 @@ class Tickets(commands.Cog):
                 self.db.cursor.execute("SELECT embed_color FROM settings WHERE guild_id = ?", (inter.guild.id,))
                 embed_color = self.db.cursor.fetchone()[0]
                 embed_color = disnake.Color(int(embed_color.lstrip('#'), 16))
-                self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
                 taken_username = self.db.cursor.fetchone()
                 if taken_username is None or taken_username[0] is None:
                     embed1 = disnake.Embed(
@@ -483,7 +509,7 @@ class Tickets(commands.Cog):
                     await inter.channel.send(embed=embed2)
                     await asyncio.sleep(5)
                     await inter.channel.delete()
-                    self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                    self.db.cursor.execute("DELETE FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
                     self.db.conn.commit()
                     return
                 else:
@@ -503,12 +529,12 @@ class Tickets(commands.Cog):
                     await inter.response.defer()
                     await inter.channel.send(embed=embed1)
                     await inter.channel.send(embed=embed2)
-                    self.db.cursor.execute("SELECT creator_id, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                    creator_id, thread_number = self.db.cursor.fetchone()
+                    self.db.cursor.execute("SELECT creator_id, ticket_number FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
+                    creator_id, ticket_number = self.db.cursor.fetchone()
                     creator = await self.bot.fetch_user(creator_id)
                     if creator is not None:
                         embed = disnake.Embed(title="Ваш обращение было закрыто", timestamp=datetime.datetime.now(), color=embed_color)
-                        embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
+                        embed.add_field(name=":id: Ticket ID", value=ticket_number, inline=True)
                         embed.add_field(name=":unlock: Открыл", value=creator.mention, inline=True)
                         embed.add_field(name=":lock: Закрыл", value=inter.author.mention, inline=True)
                         embed.add_field(name="", value="", inline=False)
@@ -543,7 +569,7 @@ class Tickets(commands.Cog):
                     self.db.conn.commit()
                     await asyncio.sleep(5)
                     await inter.channel.delete()
-                    self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                    self.db.cursor.execute("DELETE FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
                     self.db.conn.commit()
             except Exception as e:
                 logger.error(f"Ошибка при закрытии тикета {inter.channel.name}: {e}")
@@ -559,10 +585,10 @@ class Tickets(commands.Cog):
                 self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
                 status = self.db.cursor.fetchone()
                 if status is not None and status[0] == 1:
-                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть с причиной обращение **позже**. ⚠️", ephemeral=True)
+                    await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте закрыть с причиной обращение **позже**. ⚠️", ephemeral=True) # type: ignore
                     return
 
-                self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
                 taken_username = self.db.cursor.fetchone()
                 if taken_username is not None:
                     taken_username = taken_username[0]
@@ -599,19 +625,18 @@ class Tickets(commands.Cog):
                         await inter.channel.send(embed=embed1)
                         await inter.channel.send(embed=embed2)
                         reason = inter.text_values['reason_input']
-                        self.db.cursor.execute("SELECT creator_id, thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
-                        creator_id, thread_number = self.db.cursor.fetchone()
+                        self.db.cursor.execute("SELECT creator_id, ticket_number FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
+                        creator_id, ticket_number = self.db.cursor.fetchone()
                         creator = await self.bot.fetch_user(creator_id)
                         if creator is not None:
                             embed = disnake.Embed(title="Ваш обращение было закрыто", timestamp=datetime.datetime.now(), color=embed_color)
-                            embed.add_field(name=":id: Ticket ID", value=thread_number, inline=True)
+                            embed.add_field(name=":id: Ticket ID", value=ticket_number, inline=True)
                             embed.add_field(name=":unlock: Открыл", value=creator.mention, inline=True)
                             embed.add_field(name=":lock: Закрыл", value=inter.author.mention, inline=True)
                             embed.add_field(name="", value="", inline=False)
                             staff_member = self.db.cursor.execute("SELECT username FROM staff_list WHERE username = ?", (inter.author.name,)).fetchone()
                             if staff_member is not None:
                                 embed.add_field(name=":mag_right: Взял обращение", value=f"<@{inter.author.id}>", inline=True)
-                            # embed.add_field(name="Пожалуйста оцените работу сотрудника", value="", inline=False)
                             embed.add_field(name=":pencil: Сообщение", value=reason, inline=False)
                             embed.set_author(name="Yooma Support", icon_url="https://static2.tgstat.ru/channels/_0/a1/a1f39d6ec06f314bb9ae1958342ec5fd.jpg")
                             try:
@@ -652,7 +677,7 @@ class Tickets(commands.Cog):
                             """, (self.taken_username, date.strftime("%d.%m.%Y")))
 
                         self.db.conn.commit()
-                        self.db.cursor.execute("DELETE FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+                        self.db.cursor.execute("DELETE FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
                         self.db.conn.commit()
                         await asyncio.sleep(5)
                         await inter.channel.delete()
@@ -670,10 +695,10 @@ class Tickets(commands.Cog):
             self.db.cursor.execute("SELECT status FROM settings WHERE guild_id = ?", (inter.guild.id,))
             status = self.db.cursor.fetchone()
             if status is not None and status[0] == 1:
-                await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте передать обращение **позже**. ⚠️", ephemeral=True)
+                await inter.response.send_message("⛔ \ **Технические работы**. Пожалуйста, попробуйте передать обращение **позже**. ⚠️", ephemeral=True) # type: ignore
                 return
 
-            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE thread_id = ?", (inter.channel.id,))
+            self.db.cursor.execute("SELECT taken_username FROM created_tickets WHERE channel_id = ?", (inter.channel.id,))
             taken_username = self.db.cursor.fetchone()[0]
 
             if taken_username is None:
@@ -707,10 +732,10 @@ class Tickets(commands.Cog):
                         await inter.response.send_message("Сотрудник не найден!", ephemeral=True)
                         return
 
-                    self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE thread_id = ?", (staff_name, inter.channel.id))
+                    self.db.cursor.execute("UPDATE created_tickets SET taken_username = ? WHERE channel_id = ?", (staff_name, inter.channel.id))
                     self.db.conn.commit()
 
-                    thread_number = self.db.cursor.execute("SELECT thread_number FROM created_tickets WHERE thread_id = ?", (inter.channel.id,)).fetchone()[0]
+                    ticket_number = self.db.cursor.execute("SELECT ticket_number FROM created_tickets WHERE channel_id = ?", (inter.channel.id,)).fetchone()[0]
 
                     self.db.cursor.execute("SELECT ticket_name FROM staff_list WHERE username = ?", (staff_name,))
                     ticket_name = self.db.cursor.fetchone()
@@ -718,7 +743,7 @@ class Tickets(commands.Cog):
                         ticket_name = ticket_name[0]
                     else:
                         ticket_name = taken_username
-                    new_name = f"{ticket_name}-ticket-{thread_number}"
+                    new_name = f"{ticket_name}-ticket-{ticket_number}"
                     await inter.channel.edit(name=new_name)
 
                     self.db.cursor.execute("SELECT user_id FROM staff_list WHERE username = ?", (staff_name,))
@@ -748,6 +773,54 @@ class Tickets(commands.Cog):
                     await inter.message.edit(embed=ticket_embed, view=view)
 
             await inter.response.send_modal(TransferTicketModal(self.bot))
+
+        if inter.data.custom_id == "add_ticket":
+            if not (self.check_staff_permissions(inter, "staff") or self.check_staff_permissions(inter, "dev")):
+                await inter.response.send_message("У вас нет прав для использования этой команды", ephemeral=True)
+                return
+            
+            class AddStaffModal(disnake.ui.Modal):
+                def __init__(self, bot):
+                    self.bot = bot
+                    self.db = Database("database.db")
+                    super().__init__(
+                        title="Добавить сотрудника в тикет",
+                        components=[
+                            disnake.ui.ActionRow(
+                                disnake.ui.TextInput(
+                                    label="Юзернейм сотрудника",
+                                    placeholder="Введите юзернейм сотрудника",
+                                    style=disnake.TextInputStyle.short,
+                                    custom_id="staff_name_input",
+                                    min_length=1,
+                                    max_length=32
+                                )
+                            )
+                        ],
+                    )
+
+                async def callback(self, inter_modal):
+                    staff_name = inter_modal.text_values.get('staff_name_input')
+                    self.db.cursor.execute("SELECT user_id FROM staff_list WHERE username = ?", (staff_name,))
+                    staff_member = self.db.cursor.fetchone()
+                    if staff_member is None:
+                        await inter_modal.response.send_message("Сотрудник не найден!", ephemeral=True)
+                        return
+                    user_id = staff_member[0]
+                    guild = inter_modal.guild
+                    member = guild.get_member(user_id)
+
+                    if member is None:
+                        await inter_modal.response.send_message(f"Пользователь с юзернеймом {staff_name} не найден на сервере.", ephemeral=True)
+                        return
+
+                    overwrite = disnake.PermissionOverwrite(read_messages=True,send_messages=True,attach_files=True,add_reactions=True,read_message_history=True)
+                    await inter_modal.channel.set_permissions(member, overwrite=overwrite)
+                    await inter_modal.response.send_message(f"Пользователь {staff_name} добавлен в тикет.", ephemeral=True)
+
+            await inter.response.send_modal(AddStaffModal(self.bot))
+        
+
 
 
 def setuptickets(bot):
