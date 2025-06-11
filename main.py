@@ -12,7 +12,7 @@ intents = disnake.Intents.default()
 intents.message_content = True
 intents.guilds = True
 intents.members = True
-version = "3.5.8.6"
+version = "3.5.9"
 bot = commands.Bot(command_prefix="/", intents=intents, activity=disnake.Activity(type=disnake.ActivityType.listening, name=f"yooma.su | v{version}"))
 
 db = Database("database.db")
